@@ -83,7 +83,7 @@ Hinweise:
 - **Fragen, Optionen, Abschnitte:** in `schema.js`. Labels und Optionen frei änderbar. Die `id` eines bestehenden Feldes nicht ändern.
 - **PDF-Layout:** Funktion `buildPdf` in `app.js`. Schrift Helvetica 10 pt (PDF-Standardschrift, entspricht Arial in Form und Laufweite).
 - **GIS-Layer:** `gis-layers.js`.
-- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v4';` hochzählen (`ubb-v5` …) und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
+- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v5';` hochzählen (`ubb-v6` …) und in `index.html` bei allen `<script src="…?v=5">` die Zahl ebenfalls erhöhen und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
 
 ## Dateien
 

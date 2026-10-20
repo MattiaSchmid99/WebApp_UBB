@@ -1,6 +1,6 @@
 // Offline-Cache. Bei jeder Änderung an den App-Dateien VERSION erhöhen,
 // damit die Smartphones die neue Version laden.
-const VERSION = 'ubb-v4';
+const VERSION = 'ubb-v5';
 const FILES = ['./', 'index.html', 'app.js', 'schema.js', 'gis-layers.js', 'gis.js', 'jspdf.umd.min.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 const OPTIONAL = ['afry-logo.png', 'afry-logo-white.png']; // Logo-Dateien, falls vorhanden
 
@@ -24,7 +24,7 @@ self.addEventListener('fetch', e => {
   if (new URL(e.request.url).origin !== location.origin) return; // Kartendienste direkt, ohne Cache
   // Timeout, damit die App bei schwachem Empfang nicht hängt
   const net = Promise.race([
-    fetch(e.request),
+    fetch(e.request, { cache: 'no-cache' }), // Browser-Cache umgehen, immer beim Server nachfragen
     new Promise((_, rej) => setTimeout(() => rej(new Error('timeout')), 4000)),
   ]);
   e.respondWith(
