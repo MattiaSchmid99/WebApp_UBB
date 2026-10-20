@@ -4,157 +4,181 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>UBB Begehung</title>
-<meta name="theme-color" content="#2f5d46">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="light">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="UBB Begehung">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icon-192.png">
 <link rel="icon" href="icon-192.png">
 <style>
+/* AFRY-Erscheinungsbild: Schwarz/Weiss mit Grautönen, eckige Formen, Arial */
 :root {
-  --bg: #f3f2ec;
-  --card: #ffffff;
-  --ink: #1d2420;
-  --muted: #66706a;
-  --line: #dcdcd2;
-  --accent: #2f5d46;
-  --accent-ink: #ffffff;
-  --accent-soft: #e3ece5;
-  --warn: #a5402d;
-  --chip: #f1f1ea;
-  --radius: 12px;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #141815;
-    --card: #1d2320;
-    --ink: #e7ebe7;
-    --muted: #9aa49d;
-    --line: #333b36;
-    --accent: #7fb596;
-    --accent-ink: #0f1a14;
-    --accent-soft: #23352b;
-    --warn: #e08a75;
-    --chip: #262d29;
-  }
+  --ink: #000; --muted: #5c5c5c; --line: #d9d9d9; --field: #bdbdbd;
+  --bg: #f2f2f2; --card: #fff; --accent: #000; --accent-ink: #fff;
+  --warn: #a15c00; --ok: #1f6b3a;
+  --font: Arial, Helvetica, sans-serif;
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); }
-body {
-  font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-  padding-bottom: calc(88px + env(safe-area-inset-bottom));
-}
-header {
-  position: sticky; top: 0; z-index: 5;
-  background: var(--bg);
+body { font: 16px/1.4 var(--font); padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+
+header.app {
+  position: sticky; top: 0; z-index: 5; background: #000; color: #fff;
   padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
-  border-bottom: 1px solid var(--line);
-  display: flex; align-items: center; gap: 12px;
+  display: flex; align-items: center; gap: 14px;
 }
-header h1 { font-size: 17px; margin: 0; flex: 1; font-weight: 650; letter-spacing: -0.01em; }
-header h1 small { display: block; font-size: 12.5px; font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-#saveState { font-size: 12px; color: var(--muted); white-space: nowrap; }
+header.app .logo { height: 26px; display: block; flex: none; }
+header.app .logo-txt { font-weight: 700; font-size: 19px; letter-spacing: .06em; flex: none; }
+header.app h1 { margin: 0; flex: 1; min-width: 0; font-size: 14px; font-weight: 400; letter-spacing: .02em; border-left: 1px solid #555; padding-left: 14px; }
+header.app h1 small { display: block; font-size: 12px; color: #bdbdbd; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#saveState { font-size: 12px; color: #bdbdbd; white-space: nowrap; }
 main { max-width: 720px; margin: 0 auto; padding: 12px 12px 0; }
 
-details.sec {
-  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
-  margin-bottom: 10px; overflow: hidden;
-}
+details.sec { background: var(--card); margin-bottom: 8px; }
 details.sec > summary {
-  list-style: none; cursor: pointer; padding: 14px 16px;
-  display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15.5px;
+  list-style: none; cursor: pointer; padding: 15px 16px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em;
 }
 details.sec > summary::-webkit-details-marker { display: none; }
 details.sec > summary::after {
-  content: ""; width: 9px; height: 9px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
-  transform: rotate(45deg); margin: -4px 4px 0 0; transition: transform .15s;
+  content: ""; width: 8px; height: 8px; border-right: 2px solid #000; border-bottom: 2px solid #000;
+  transform: rotate(45deg); margin: -4px 4px 0 0; transition: transform .15s; flex: none;
 }
+details.sec[open] > summary { border-bottom: 2px solid #000; }
 details.sec[open] > summary::after { transform: rotate(-135deg); margin-top: 4px; }
 summary .t { flex: 1; }
-.badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--chip); color: var(--muted); }
-.badge.on { background: var(--accent-soft); color: var(--accent); }
-.secbody { padding: 0 16px 16px; display: flex; flex-wrap: wrap; gap: 14px 10px; }
-.aids { width: 100%; font-size: 13px; color: var(--muted); margin-top: -4px; }
+.badge { font-size: 11px; font-weight: 700; padding: 3px 7px; background: var(--bg); color: var(--muted); text-transform: none; letter-spacing: 0; white-space: nowrap; }
+.badge.on { background: #000; color: #fff; }
+.secbody { padding: 14px 16px 18px; display: flex; flex-wrap: wrap; gap: 16px 10px; }
+.aids { width: 100%; font-size: 13px; color: var(--muted); }
 
 .f { width: 100%; }
 .f.w1 { width: calc(33.33% - 7px); min-width: 96px; flex-grow: 1; }
 .f.w2 { width: calc(66.66% - 4px); flex-grow: 2; }
-.f.cond { padding-left: 12px; border-left: 3px solid var(--accent-soft); }
+.f.cond { padding-left: 12px; border-left: 3px solid var(--line); }
 .f.hidden { display: none; }
-.f > label, .f > .lbl { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.f > label, .f > .lbl { display: block; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
 .hint { display: block; font-size: 12.5px; color: var(--muted); font-weight: 400; margin-top: 1px; }
-.sub { width: 100%; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding-top: 6px; border-top: 1px solid var(--line); }
+.sub { width: 100%; font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding-top: 8px; border-top: 1px solid var(--line); }
 
-input[type=text], input[type=number], input[type=date], textarea {
+input[type=text], input[type=number], input[type=date], textarea, select {
   width: 100%; font: inherit; font-size: 16px; color: var(--ink);
-  background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+  background: #fff; border: 1px solid var(--field); border-radius: 0;
   padding: 10px 11px; outline: none; -webkit-appearance: none; appearance: none;
 }
+select { background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%23000' stroke-width='2'/%3E%3C/svg%3E") no-repeat right 12px center; padding-right: 34px; min-height: 44px; }
 input[type=date] { min-height: 44px; }
 textarea { min-height: 76px; resize: vertical; }
-input:focus, textarea:focus { border-color: var(--accent); }
-input.bad { border-color: var(--warn); }
+input:focus, textarea:focus, select:focus { outline: 2px solid #000; outline-offset: 1px; }
+input.bad { border-color: var(--warn); color: var(--warn); }
+input[type=checkbox] { accent-color: #000; }
 
-.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .chip {
-  font: inherit; font-size: 14.5px; color: var(--ink); background: var(--chip);
-  border: 1px solid var(--line); border-radius: 99px; padding: 8px 14px; min-height: 40px; cursor: pointer;
+  font: inherit; font-size: 14.5px; color: var(--ink); background: #fff;
+  border: 1px solid var(--field); border-radius: 0; padding: 8px 14px; min-height: 40px; cursor: pointer;
 }
-.chip[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.chip[aria-pressed=true] { background: #000; color: #fff; border-color: #000; }
 .other { margin-top: 8px; }
 
 .photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-.ph { position: relative; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.ph { position: relative; background: var(--bg); border: 1px solid var(--line); overflow: hidden; }
 .ph img { display: block; width: 100%; aspect-ratio: 4/3; object-fit: cover; }
-.ph input { border: 0; border-top: 1px solid var(--line); border-radius: 0; font-size: 14px; padding: 7px 8px; }
+.ph input { border: 0; border-top: 1px solid var(--line); font-size: 14px; padding: 7px 8px; }
 .ph .del {
-  position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%;
-  border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 18px; line-height: 30px; cursor: pointer;
+  position: absolute; top: 0; right: 0; width: 34px; height: 34px;
+  border: 0; background: #000; color: #fff; font-size: 20px; line-height: 34px; cursor: pointer;
 }
 .addph {
   display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 96px;
-  border: 1.5px dashed var(--line); border-radius: 9px; color: var(--accent); font-weight: 600; font-size: 14.5px; cursor: pointer;
+  border: 1.5px dashed var(--field); color: #000; font-weight: 700; font-size: 14.5px; cursor: pointer; background: #fff;
 }
 .addph input { display: none; }
 
 .bar {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
-  background: var(--card); border-top: 1px solid var(--line);
+  background: #fff; border-top: 2px solid #000;
   padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
-  display: flex; gap: 10px; justify-content: center;
+  display: flex; gap: 8px; justify-content: center;
 }
 .btn {
-  font: inherit; font-size: 16px; font-weight: 600; border-radius: 11px; padding: 13px 16px; min-height: 48px;
-  border: 1px solid var(--line); background: var(--chip); color: var(--ink); cursor: pointer;
+  font: inherit; font-size: 16px; font-weight: 700; border-radius: 0; padding: 12px 16px; min-height: 48px;
+  border: 1px solid #000; background: #fff; color: #000; cursor: pointer;
 }
-.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); flex: 1; max-width: 480px; }
-.btn:disabled { opacity: .55; }
+.btn.primary { background: #000; color: #fff; flex: 1; max-width: 480px; }
+.btn:active { background: #333; color: #fff; }
+.btn:disabled { opacity: .5; }
+.btn.sm { font-size: 14px; padding: 7px 12px; min-height: 36px; }
 
 dialog {
-  border: 0; border-radius: 16px; padding: 20px; width: min(92vw, 440px);
-  background: var(--card); color: var(--ink);
+  border: 0; border-radius: 0; padding: 20px; width: min(94vw, 460px);
+  background: #fff; color: var(--ink); border-top: 4px solid #000;
 }
-dialog::backdrop { background: rgba(0,0,0,.45); }
-dialog h2 { margin: 0 0 6px; font-size: 18px; }
+dialog::backdrop { background: rgba(0,0,0,.55); }
+dialog h2 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: .05em; }
 dialog p { margin: 0 0 14px; color: var(--muted); font-size: 14.5px; }
-dialog .fname { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--ink); word-break: break-all; background: var(--bg); padding: 8px 10px; border-radius: 8px; margin-bottom: 14px; }
+dialog p.small { font-size: 13px; margin: 12px 0 10px; }
+dialog .lbl { display: block; font-size: 14px; font-weight: 700; margin-bottom: 6px; }
+dialog .fname { font-size: 13px; word-break: break-all; background: var(--bg); padding: 8px 10px; margin-bottom: 14px; }
 dialog .stack { display: flex; flex-direction: column; gap: 8px; }
 dialog .stack .btn { width: 100%; max-width: none; }
-dialog label.chk { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; margin: 6px 0 16px; }
-dialog label.chk input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; }
+dialog.tall { max-height: 88vh; overflow-y: auto; }
+.filebtn { display: block; text-align: center; }
+.filebtn input { display: none; }
 .toast {
   position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%);
-  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px;
+  background: #000; color: #fff; padding: 10px 16px; font-size: 14px;
   opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 10; max-width: 90vw;
 }
 .toast.on { opacity: 1; }
+
+/* Presets */
+.plist { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; }
+.plist .empty { color: var(--muted); font-size: 14px; padding: 10px 0; }
+.pitem { border: 1px solid var(--line); padding: 10px 12px; display: flex; align-items: center; gap: 8px; }
+.pitem .pn { flex: 1; min-width: 0; }
+.pitem .pn b { display: block; font-size: 15px; overflow-wrap: anywhere; }
+.pitem .pn span { font-size: 12.5px; color: var(--muted); }
+.picktools { display: flex; gap: 8px; margin-bottom: 8px; }
+.picklist { border: 1px solid var(--line); }
+.picklist h3 { margin: 0; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); background: var(--bg); padding: 7px 12px; }
+.picklist label { display: flex; gap: 10px; align-items: flex-start; padding: 9px 12px; border-top: 1px solid var(--line); font-size: 14.5px; cursor: pointer; }
+.picklist label input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; }
+.picklist label span { flex: 1; min-width: 0; }
+.picklist label small { display: block; color: var(--muted); font-size: 12.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.picklist .none { padding: 12px; color: var(--muted); font-size: 14px; }
+
+/* GIS-Lagekontrolle */
+.gis { display: flex; flex-direction: column; gap: 12px; }
+.gis .row2 { display: flex; gap: 8px; }
+.gis .row2 > * { flex: 1; min-width: 0; }
+.gis .pos { font-size: 13.5px; background: var(--bg); padding: 9px 11px; line-height: 1.5; }
+.gis .pos b { font-weight: 700; }
+.gis .pos.warn { color: var(--warn); }
+.gis details.manual summary { font-size: 13.5px; cursor: pointer; color: var(--muted); }
+.gis details.manual .row2 { margin-top: 8px; }
+.gis .preview { border: 1px solid #000; background: #fff; }
+.gis .preview img { display: block; width: 100%; }
+.gis .preview .cap { font-size: 13px; padding: 8px 10px; border-top: 1px solid var(--line); }
+.gis .preview .cap ul { margin: 4px 0 0; padding-left: 18px; }
+.gis .maplist { display: flex; flex-direction: column; gap: 10px; }
+.gis .mitem { border: 1px solid var(--line); background: #fff; }
+.gis .mitem img { display: block; width: 100%; }
+.gis .mitem .mi { padding: 8px 10px; font-size: 13px; display: flex; gap: 8px; align-items: flex-start; }
+.gis .mitem .mi div { flex: 1; min-width: 0; }
+.gis .mitem input { border: 0; border-top: 1px solid var(--line); font-size: 14px; }
+.gis .msg { font-size: 13.5px; color: var(--muted); }
+.gis .msg.err { color: var(--warn); }
 </style>
 </head>
 <body>
-<header>
-  <h1>UBB Begehungsprotokoll<small id="subTitle">Neues Protokoll</small></h1>
+<header class="app">
+  <img class="logo" id="hdrLogo" src="afry-logo-white.png" alt="AFRY" onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'logo-txt',textContent:'AFRY'}))">
+  <h1>UBB-Begehung<small id="subTitle">Neues Protokoll</small></h1>
   <span id="saveState"></span>
 </header>
 
@@ -162,6 +186,7 @@ dialog label.chk input { width: 20px; height: 20px; margin: 1px 0 0; flex: none;
 
 <div class="bar">
   <button class="btn" id="btnNew" type="button">Neu</button>
+  <button class="btn" id="btnPresets" type="button">Presets</button>
   <button class="btn primary" id="btnPdf" type="button">PDF erstellen</button>
 </div>
 
@@ -180,10 +205,40 @@ dialog label.chk input { width: 20px; height: 20px; margin: 1px 0 0; flex: none;
 <dialog id="dlgNew">
   <h2>Neues Protokoll</h2>
   <p>Das aktuelle Protokoll wird verworfen. Wurde es als PDF gespeichert?</p>
-  <label class="chk"><input type="checkbox" id="keepProject" checked> Projektdaten übernehmen (Projekt, Bauvorhaben, Bauleitung, Schutzgebiet, KbS)</label>
-  <div class="stack">
+  <label class="lbl" for="newPreset">Vorausfüllen mit</label>
+  <select id="newPreset"></select>
+  <div class="stack" style="margin-top:16px">
     <button class="btn primary" id="btnNewOk" type="button">Neues Protokoll starten</button>
     <button class="btn" id="btnNewCancel" type="button">Abbrechen</button>
+  </div>
+</dialog>
+
+<dialog id="dlgPresets" class="tall">
+  <h2>Presets</h2>
+  <p>Ein Preset füllt ausgewählte Felder vor, z.B. die Angaben eines Projekts.</p>
+  <div id="presetList" class="plist"></div>
+  <div class="stack">
+    <button class="btn primary" id="btnPresetSave" type="button">Aktuelle Angaben als Preset speichern</button>
+    <button class="btn" id="btnPresetExport" type="button">Presets exportieren (OneDrive)</button>
+    <label class="btn filebtn">Presets importieren<input type="file" id="presetImport" accept=".json,.txt,application/json,text/plain"></label>
+    <button class="btn" id="btnPresetsClose" type="button">Schliessen</button>
+  </div>
+</dialog>
+
+<dialog id="dlgPresetSave" class="tall">
+  <h2>Preset speichern</h2>
+  <label class="lbl" for="presetName">Name</label>
+  <input type="text" id="presetName" list="presetNames" autocomplete="off" placeholder="z.B. 2026-114 Zürich Altstetten">
+  <datalist id="presetNames"></datalist>
+  <p class="small">Felder wählen, die das Preset vorausfüllen soll. Angezeigt werden nur ausgefüllte Felder. Fotos, Karten und Datum werden nicht übernommen.</p>
+  <div class="picktools">
+    <button class="btn sm" id="pickAll" type="button">Alle</button>
+    <button class="btn sm" id="pickNone" type="button">Keine</button>
+  </div>
+  <div id="pickList" class="picklist"></div>
+  <div class="stack" style="margin-top:14px">
+    <button class="btn primary" id="btnPresetSaveOk" type="button">Speichern</button>
+    <button class="btn" id="btnPresetSaveCancel" type="button">Abbrechen</button>
   </div>
 </dialog>
 
@@ -191,6 +246,8 @@ dialog label.chk input { width: 20px; height: 20px; margin: 1px 0 0; flex: none;
 
 <script src="jspdf.umd.min.js"></script>
 <script src="schema.js"></script>
+<script src="gis-layers.js"></script>
+<script src="gis.js"></script>
 <script src="app.js"></script>
 </body>
 </html>

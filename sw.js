@@ -1,10 +1,13 @@
 // Offline-Cache. Bei jeder Änderung an den App-Dateien VERSION erhöhen,
 // damit die Smartphones die neue Version laden.
-const VERSION = 'ubb-v1';
-const FILES = ['./', 'index.html', 'app.js', 'schema.js', 'jspdf.umd.min.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+const VERSION = 'ubb-v4';
+const FILES = ['./', 'index.html', 'app.js', 'schema.js', 'gis-layers.js', 'gis.js', 'jspdf.umd.min.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+const OPTIONAL = ['afry-logo.png', 'afry-logo-white.png']; // Logo-Dateien, falls vorhanden
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(VERSION).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(VERSION)
+    .then(c => c.addAll(FILES).then(() => Promise.all(OPTIONAL.map(f => c.add(f).catch(() => {})))))
+    .then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -18,6 +21,7 @@ self.addEventListener('activate', e => {
 // Netz zuerst (neueste Version), bei fehlendem Empfang aus dem Cache
 self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
+  if (new URL(e.request.url).origin !== location.origin) return; // Kartendienste direkt, ohne Cache
   // Timeout, damit die App bei schwachem Empfang nicht hängt
   const net = Promise.race([
     fetch(e.request),

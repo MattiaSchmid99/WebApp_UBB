@@ -188,6 +188,13 @@ const SCHEMA = [
       { id: 'gesamt_bem', label: 'Bemerkungen', type: 'textarea' },
     ]
   },
+  {
+    id: 'gis', title: 'GIS-Lagekontrolle', noPhotos: true,
+    intro: 'Layer wählen, Position bestimmen, Kartenausschnitt in den Bericht übernehmen. Prüft z.B. Betroffenheit von Inventaren oder Waldabstand.',
+    fields: [
+      { id: 'gis_karten', label: 'Kartenausschnitte', type: 'gis' },
+    ]
+  },
 ];
 
 // Fotofeld in jedem Abschnitt ohne eigenes Fotofeld ergänzen (vor "Bemerkungen")
