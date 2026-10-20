@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="de-CH">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>UBB Begehung</title>
+<meta name="theme-color" content="#2f5d46">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="UBB Begehung">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<style>
+:root {
+  --bg: #f3f2ec;
+  --card: #ffffff;
+  --ink: #1d2420;
+  --muted: #66706a;
+  --line: #dcdcd2;
+  --accent: #2f5d46;
+  --accent-ink: #ffffff;
+  --accent-soft: #e3ece5;
+  --warn: #a5402d;
+  --chip: #f1f1ea;
+  --radius: 12px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141815;
+    --card: #1d2320;
+    --ink: #e7ebe7;
+    --muted: #9aa49d;
+    --line: #333b36;
+    --accent: #7fb596;
+    --accent-ink: #0f1a14;
+    --accent-soft: #23352b;
+    --warn: #e08a75;
+    --chip: #262d29;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--bg); color: var(--ink); }
+body {
+  font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+}
+header {
+  position: sticky; top: 0; z-index: 5;
+  background: var(--bg);
+  padding: calc(10px + env(safe-area-inset-top)) 16px 10px;
+  border-bottom: 1px solid var(--line);
+  display: flex; align-items: center; gap: 12px;
+}
+header h1 { font-size: 17px; margin: 0; flex: 1; font-weight: 650; letter-spacing: -0.01em; }
+header h1 small { display: block; font-size: 12.5px; font-weight: 400; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#saveState { font-size: 12px; color: var(--muted); white-space: nowrap; }
+main { max-width: 720px; margin: 0 auto; padding: 12px 12px 0; }
+
+details.sec {
+  background: var(--card); border: 1px solid var(--line); border-radius: var(--radius);
+  margin-bottom: 10px; overflow: hidden;
+}
+details.sec > summary {
+  list-style: none; cursor: pointer; padding: 14px 16px;
+  display: flex; align-items: center; gap: 10px; font-weight: 600; font-size: 15.5px;
+}
+details.sec > summary::-webkit-details-marker { display: none; }
+details.sec > summary::after {
+  content: ""; width: 9px; height: 9px; border-right: 2px solid var(--muted); border-bottom: 2px solid var(--muted);
+  transform: rotate(45deg); margin: -4px 4px 0 0; transition: transform .15s;
+}
+details.sec[open] > summary::after { transform: rotate(-135deg); margin-top: 4px; }
+summary .t { flex: 1; }
+.badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 99px; background: var(--chip); color: var(--muted); }
+.badge.on { background: var(--accent-soft); color: var(--accent); }
+.secbody { padding: 0 16px 16px; display: flex; flex-wrap: wrap; gap: 14px 10px; }
+.aids { width: 100%; font-size: 13px; color: var(--muted); margin-top: -4px; }
+
+.f { width: 100%; }
+.f.w1 { width: calc(33.33% - 7px); min-width: 96px; flex-grow: 1; }
+.f.w2 { width: calc(66.66% - 4px); flex-grow: 2; }
+.f.cond { padding-left: 12px; border-left: 3px solid var(--accent-soft); }
+.f.hidden { display: none; }
+.f > label, .f > .lbl { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+.hint { display: block; font-size: 12.5px; color: var(--muted); font-weight: 400; margin-top: 1px; }
+.sub { width: 100%; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); padding-top: 6px; border-top: 1px solid var(--line); }
+
+input[type=text], input[type=number], input[type=date], textarea {
+  width: 100%; font: inherit; font-size: 16px; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--line); border-radius: 9px;
+  padding: 10px 11px; outline: none; -webkit-appearance: none; appearance: none;
+}
+input[type=date] { min-height: 44px; }
+textarea { min-height: 76px; resize: vertical; }
+input:focus, textarea:focus { border-color: var(--accent); }
+input.bad { border-color: var(--warn); }
+
+.chips { display: flex; flex-wrap: wrap; gap: 7px; }
+.chip {
+  font: inherit; font-size: 14.5px; color: var(--ink); background: var(--chip);
+  border: 1px solid var(--line); border-radius: 99px; padding: 8px 14px; min-height: 40px; cursor: pointer;
+}
+.chip[aria-pressed=true] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.other { margin-top: 8px; }
+
+.photos { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+.ph { position: relative; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.ph img { display: block; width: 100%; aspect-ratio: 4/3; object-fit: cover; }
+.ph input { border: 0; border-top: 1px solid var(--line); border-radius: 0; font-size: 14px; padding: 7px 8px; }
+.ph .del {
+  position: absolute; top: 6px; right: 6px; width: 30px; height: 30px; border-radius: 50%;
+  border: 0; background: rgba(0,0,0,.6); color: #fff; font-size: 18px; line-height: 30px; cursor: pointer;
+}
+.addph {
+  display: flex; align-items: center; justify-content: center; gap: 6px; min-height: 96px;
+  border: 1.5px dashed var(--line); border-radius: 9px; color: var(--accent); font-weight: 600; font-size: 14.5px; cursor: pointer;
+}
+.addph input { display: none; }
+
+.bar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 6;
+  background: var(--card); border-top: 1px solid var(--line);
+  padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+  display: flex; gap: 10px; justify-content: center;
+}
+.btn {
+  font: inherit; font-size: 16px; font-weight: 600; border-radius: 11px; padding: 13px 16px; min-height: 48px;
+  border: 1px solid var(--line); background: var(--chip); color: var(--ink); cursor: pointer;
+}
+.btn.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); flex: 1; max-width: 480px; }
+.btn:disabled { opacity: .55; }
+
+dialog {
+  border: 0; border-radius: 16px; padding: 20px; width: min(92vw, 440px);
+  background: var(--card); color: var(--ink);
+}
+dialog::backdrop { background: rgba(0,0,0,.45); }
+dialog h2 { margin: 0 0 6px; font-size: 18px; }
+dialog p { margin: 0 0 14px; color: var(--muted); font-size: 14.5px; }
+dialog .fname { font-family: ui-monospace, Menlo, monospace; font-size: 13px; color: var(--ink); word-break: break-all; background: var(--bg); padding: 8px 10px; border-radius: 8px; margin-bottom: 14px; }
+dialog .stack { display: flex; flex-direction: column; gap: 8px; }
+dialog .stack .btn { width: 100%; max-width: none; }
+dialog label.chk { display: flex; gap: 10px; align-items: flex-start; font-size: 15px; margin: 6px 0 16px; }
+dialog label.chk input { width: 20px; height: 20px; margin: 1px 0 0; flex: none; }
+.toast {
+  position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+  background: var(--ink); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: 14px;
+  opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 10; max-width: 90vw;
+}
+.toast.on { opacity: 1; }
+</style>
+</head>
+<body>
+<header>
+  <h1>UBB Begehungsprotokoll<small id="subTitle">Neues Protokoll</small></h1>
+  <span id="saveState"></span>
+</header>
+
+<main id="form"></main>
+
+<div class="bar">
+  <button class="btn" id="btnNew" type="button">Neu</button>
+  <button class="btn primary" id="btnPdf" type="button">PDF erstellen</button>
+</div>
+
+<dialog id="dlgPdf">
+  <h2>PDF bereit</h2>
+  <p id="pdfHint"></p>
+  <div class="fname" id="pdfName"></div>
+  <div class="stack">
+    <button class="btn primary" id="btnShare" type="button">In OneDrive speichern / Teilen</button>
+    <button class="btn" id="btnDownload" type="button">Herunterladen</button>
+    <button class="btn" id="btnPreview" type="button">Vorschau</button>
+    <button class="btn" id="btnClosePdf" type="button">Schliessen</button>
+  </div>
+</dialog>
+
+<dialog id="dlgNew">
+  <h2>Neues Protokoll</h2>
+  <p>Das aktuelle Protokoll wird verworfen. Wurde es als PDF gespeichert?</p>
+  <label class="chk"><input type="checkbox" id="keepProject" checked> Projektdaten übernehmen (Projekt, Bauvorhaben, Bauleitung, Schutzgebiet, KbS)</label>
+  <div class="stack">
+    <button class="btn primary" id="btnNewOk" type="button">Neues Protokoll starten</button>
+    <button class="btn" id="btnNewCancel" type="button">Abbrechen</button>
+  </div>
+</dialog>
+
+<div class="toast" id="toast"></div>
+
+<script src="jspdf.umd.min.js"></script>
+<script src="schema.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
