@@ -1,4 +1,5 @@
 'use strict';
+const APP_VERSION = '6'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
 
 /* ---------- Speicher (IndexedDB, Fallback: nur im Arbeitsspeicher) ---------- */
 const DB = (() => {
@@ -349,7 +350,7 @@ function buildPdf() {
   const doc = new jsPDF({ unit: 'mm', format: 'a4', compress: true });
   // Schrift: Helvetica (PDF-Standardschrift, metrisch identisch mit Arial), Grundgrösse 10 pt
   const PW = 210, PH = 297, M = 15, W = PW - 2 * M, LW = 68, VW = W - LW;
-  const TOP = 24, BOTTOM = PH - 16, FS = 10, LH = 4.5;
+  const TOP = 27, BOTTOM = PH - 18, FS = 10, LH = 4.5;
   const LHF = LH / (FS * 0.3528);
   const C = { ink: [0, 0, 0], muted: [92, 92, 92], line: [217, 217, 217], label: [242, 242, 242], warn: [161, 92, 0] };
   const v = state.values;
@@ -367,8 +368,7 @@ function buildPdf() {
   const subline = [v.projekt, v.datum && fmtDate(v.datum), valueText(FIELDS.artBegehung) || null]
     .filter(x => x && String(x).trim()).map(clean).join('   |   ');
   if (subline) { const sl = doc.splitTextToSize(subline, W); doc.text(sl, M, y); y += sl.length * LH + 1; }
-  doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.6);
-  doc.line(M, y, M + W, y); y += 4;
+  y += 1;
   doc.setLineWidth(0.2);
 
   function sectionHead(title) {
@@ -501,6 +501,16 @@ function buildPdf() {
     }
     if (!items.length) continue;
     any = true;
+    // Titel nicht allein am Seitenende: Platz für den ersten Inhalt mitrechnen (Karte bzw. Foto)
+    const f0 = items[0];
+    if (f0.type === 'gis') {
+      // gleiche Rechnung wie in gisMaps(): Karte + ca. 5 Zeilen Angaben (+ Legende, falls sie auf die Seite passt)
+      const m0 = state.gis[f0.id][0], mh0 = W * m0.h / m0.w, blk = 12 + mh0 + 4 + 5 * LH + 4;
+      let leg = 0;
+      if (m0.legend) { let lw = Math.min(120, m0.legend.w * 0.2646), lh = lw * m0.legend.h / m0.legend.w; if (lh > 90) lh = 90; leg = lh + 8; }
+      need(blk + leg <= BOTTOM - TOP ? blk + leg : blk);
+    }
+    else if (f0.type === 'photos') need(12 + 80);
     sectionHead(s.title);
     for (const f of items) {
       if (f.type === 'sub') subHead(f.label);
@@ -514,27 +524,33 @@ function buildPdf() {
   }
   if (!any) return null;
 
-  // Kopf (Logo) und Fusszeile auf jeder Seite
+  // Kopfzeile (Datum, Bearbeitung, Logo) und Fusszeile (Projekt-Nr., Seite) auf jeder Seite
   const n = doc.getNumberOfPages();
-  const foot = clean(['UBB Begehungsprotokoll', v.projekt, v.datum && fmtDate(v.datum)].filter(Boolean).join('  |  '));
+  const who = [v.ubbName, v.ubbKuerzel && `(${v.ubbKuerzel})`].filter(Boolean).join(' ');
+  const headL1 = 'Datum: ' + (v.datum ? fmtDate(v.datum) : '-');
+  const headL2 = 'Bearbeitung: ' + (who || '-');
+  const footL = clean('Projekt-Nr.: ' + (v.projekt || '-'));
   for (let i = 1; i <= n; i++) {
     doc.setPage(i);
+    // Kopfzeile
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(...C.ink);
+    doc.text(clean(headL1), M, 12);
+    doc.text(clean(headL2), M, 16.5);
     if (PDF_LOGO) {
-      const lh = 6, lw = lh * PDF_LOGO.w / PDF_LOGO.h;
-      doc.addImage(PDF_LOGO.data, 'PNG', PW - M - lw, 9, lw, lh, 'afry_logo', 'FAST');
+      const lh = 7, lw = lh * PDF_LOGO.w / PDF_LOGO.h;
+      doc.addImage(PDF_LOGO.data, 'PNG', PW - M - lw, 9.5, lw, lh, 'afry_logo', 'FAST');
     } else {
-      doc.setFont('helvetica', 'bold'); doc.setFontSize(14); doc.setTextColor(0, 0, 0);
-      doc.text('AFRY', PW - M, 14, { align: 'right', charSpace: 0.6 });
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(14);
+      doc.text('AFRY', PW - M, 15, { align: 'right', charSpace: 0.6 });
     }
-    if (i > 1) {
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...C.muted);
-      doc.text(foot, M, 14);
-      doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3); doc.line(M, 18, PW - M, 18); doc.setLineWidth(0.2);
-    }
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(8); doc.setTextColor(...C.muted);
-    doc.text(foot, M, PH - 8);
-    doc.text(`Seite ${i} / ${n}`, PW - M, PH - 8, { align: 'right' });
+    doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.5); doc.line(M, 19.5, PW - M, 19.5);
+    // Fusszeile
+    doc.setLineWidth(0.2); doc.setDrawColor(...C.line); doc.line(M, PH - 13, PW - M, PH - 13);
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...C.muted);
+    doc.text(doc.splitTextToSize(footL, W - 40)[0], M, PH - 8.5);
+    doc.text(`Seite ${i} / ${n}`, PW - M, PH - 8.5, { align: 'right' });
   }
+  doc.setProperties({ title: 'Begehungsprotokoll ' + (v.projekt || ''), creator: 'UBB-Begehung App, Version ' + APP_VERSION });
   return doc.output('blob');
 }
 
@@ -759,6 +775,7 @@ async function init() {
   state.gis ||= {};
   await loadPresets();
   loadPdfLogo();
+  document.getElementById('appVersion').textContent = 'App-Version ' + APP_VERSION;
   render();
   setSaveState('');
 
