@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '6'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
+const APP_VERSION = '8'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
 
 /* ---------- Speicher (IndexedDB, Fallback: nur im Arbeitsspeicher) ---------- */
 const DB = (() => {
@@ -36,7 +36,7 @@ function loadProfile() { try { return JSON.parse(localStorage.getItem(PROFILE_KE
 function saveProfile(p) { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch {} }
 
 /* ---------- Zustand ---------- */
-let state = { values: {}, photos: {} };
+let state = { values: {}, photos: {}, gis: {}, maengel: [], nrel: {} };
 const FIELDS = {};
 SCHEMA.forEach(s => s.fields.forEach(f => { FIELDS[f.id] = f; f.section = s.id; }));
 
@@ -51,12 +51,15 @@ function freshState(keep) {
   for (const f of Object.values(FIELDS)) {
     if (f.profile && prof[f.id]) values[f.id] = prof[f.id];
     if (keep && f.keep && state.values[f.id] != null) {
-      values[f.id] = state.values[f.id];
+      values[f.id] = f.type === 'auflagen' ? resetAuflagen(state.values[f.id]) : state.values[f.id];
       if (state.values[f.id + '_andere'] != null) values[f.id + '_andere'] = state.values[f.id + '_andere'];
     }
   }
-  return { values, photos: {}, gis: {} };
+  return { values, photos: {}, gis: {}, maengel: [], nrel: {} };
 }
+// Auflagen für ein neues Protokoll: Text und Herkunft übernehmen, Status/Bemerkung leeren
+const resetAuflagen = arr => (Array.isArray(arr) ? arr : []).filter(a => a && String(a.text || '').trim())
+  .map(a => ({ id: uid(), text: String(a.text).slice(0, 2000), herkunft: String(a.herkunft || 'Baubewilligung').slice(0, 40), status: '', bemerkung: '' }));
 
 let saveTimer = null;
 function scheduleSave() {
@@ -110,6 +113,8 @@ function isFilled(f) {
     case 'sub': return false;
     case 'photos': return (state.photos[f.id] || []).length > 0;
     case 'gis': return ((state.gis || {})[f.id] || []).length > 0;
+    case 'auflagen': return Array.isArray(v) && v.some(a => String(a.text || '').trim());
+    case 'mlist': return false;
     case 'multi': return (Array.isArray(v) && v.length > 0) || !!(state.values[f.id + '_andere'] || '').trim();
     case 'radio': return (v != null && v !== '') || !!(f.other && (state.values[f.id + '_andere'] || '').trim());
     default: return v != null && String(v).trim() !== '';
@@ -136,14 +141,27 @@ function afterChange() {
   }
   for (const s of SCHEMA) {
     const n = s.fields.filter(f => isVisible(f) && isFilled(f)).length;
+    const mc = state.maengel.filter(m => m.section === s.id).length;
+    const nr = !!state.nrel[s.id];
     const b = document.getElementById('b_' + s.id);
-    b.textContent = n ? `${n} ausgefüllt` : 'leer';
-    b.classList.toggle('on', n > 0);
+    b.textContent = nr ? 'n. rel.' : (n ? `${n} ausgefüllt` : 'leer') + (mc ? ` · ${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}` : '');
+    b.classList.toggle('on', n > 0 || nr);
+    b.classList.toggle('warn', mc > 0 && !nr);
+    const sf = document.getElementById('sf_' + s.id);
+    if (sf) sf.classList.toggle('hidden', nr);
+    const nb = document.getElementById('nr_' + s.id);
+    if (nb) nb.setAttribute('aria-pressed', nr ? 'true' : 'false');
   }
+  renderAllMaengelLists();
   const v = state.values;
   document.getElementById('subTitle').textContent =
     [v.projekt, v.datum && fmtDate(v.datum)].filter(Boolean).join(' · ') || 'Neues Protokoll';
   scheduleSave();
+}
+
+function fmtDateTime(v) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(v || '');
+  return m ? `${m[3]}.${m[2]}.${m[1]}, ${m[4]}:${m[5]}` : (v || '');
 }
 
 function fmtDate(iso) {
@@ -159,7 +177,14 @@ function render() {
     const body = el('div', { class: 'secbody' });
     if (s.aids) body.append(el('div', { class: 'aids' }, 'Hilfsmittel: ' + s.aids));
     if (s.intro) body.append(el('div', { class: 'aids' }, s.intro));
-    s.fields.forEach(f => body.append(renderField(f)));
+    if (s.env) {
+      body.append(el('div', { class: 'sectools' },
+        el('button', { type: 'button', class: 'btn sm', id: 'nr_' + s.id, 'aria-pressed': 'false', onclick: () => toggleSectionNrel(s) }, 'Abschnitt nicht relevant'),
+        el('button', { type: 'button', class: 'btn sm', onclick: () => fillOpenNrel(s) }, 'Offene Fragen: n. rel.')));
+    }
+    const sf = el('div', { class: 'secfields', id: 'sf_' + s.id });
+    s.fields.forEach(f => sf.append(renderField(f)));
+    body.append(sf);
     const det = el('details', { class: 'sec', id: 's_' + s.id },
       el('summary', {}, el('span', { class: 't' }, s.title), el('span', { class: 'badge', id: 'b_' + s.id }, 'leer')),
       body);
@@ -171,8 +196,11 @@ function render() {
 
 function labelEl(f, forId) {
   return el(forId ? 'label' : 'div', { class: forId ? null : 'lbl', for: forId },
-    f.label, f.hint ? el('span', { class: 'hint' }, f.hint) : null);
+    f.label, f.req ? el('span', { class: 'req', title: 'Pflichtfeld' }, ' *') : null,
+    f.hint ? el('span', { class: 'hint' }, f.hint) : null);
 }
+// Felder, bei denen ein Mangel erfasst werden kann
+const canMangel = f => SCHEMA.find(s => s.id === f.section).env && ['radio', 'multi', 'text', 'number', 'textarea'].includes(f.type);
 
 function renderField(f) {
   if (f.type === 'sub') return el('div', { class: 'sub', id: 'f_' + f.id }, f.label);
@@ -180,9 +208,9 @@ function renderField(f) {
   const v = state.values[f.id];
   const inpId = 'i_' + f.id;
 
-  if (['text', 'number', 'date'].includes(f.type)) {
+  if (['text', 'number', 'date', 'datetime'].includes(f.type)) {
     const inp = el('input', {
-      id: inpId, type: f.type === 'number' ? 'text' : f.type,
+      id: inpId, type: f.type === 'number' ? 'text' : f.type === 'datetime' ? 'datetime-local' : f.type,
       inputmode: f.type === 'number' ? 'decimal' : null, autocomplete: 'off',
       value: v ?? '',
       oninput: e => {
@@ -192,6 +220,7 @@ function renderField(f) {
     });
     if (f.ph) checkPh(inp);
     w.append(labelEl(f, inpId), inp);
+    if (f.weather) w.append(weatherRow());
   } else if (f.type === 'textarea') {
     const ta = el('textarea', { id: inpId, rows: 3, oninput: e => { setValue(f.id, e.target.value); autosize(e.target); } });
     ta.value = v ?? '';
@@ -218,6 +247,17 @@ function renderField(f) {
     queueMicrotask(() => renderPhotos(f.id));
   } else if (f.type === 'gis') {
     GIS.render(f, w);
+  } else if (f.type === 'signature') {
+    w.append(labelEl(f), signaturePad(f));
+  } else if (f.type === 'auflagen') {
+    w.append(renderAuflagen(f));
+  } else if (f.type === 'mlist') {
+    w.append(labelEl(f), el('div', { class: 'mlist', id: 'mlAll' }));
+  }
+  if (canMangel(f)) {
+    w.append(el('div', { class: 'mrow' },
+      el('div', { class: 'mlist', id: 'ml_' + f.id }),
+      el('button', { type: 'button', class: 'mbtn', onclick: () => openMangel({ section: f.section, ref: f.id, refLabel: f.label }) }, '+ Mangel')));
   }
   return w;
 }
@@ -273,21 +313,27 @@ function renderPhotos(fid) {
         oninput: e => { p.caption = e.target.value; scheduleSave(); },
       })));
   }
-  const inp = el('input', {
-    type: 'file', accept: 'image/*', multiple: true,
-    onchange: async e => {
-      const files = [...e.target.files];
-      e.target.value = '';
-      for (const file of files) {
-        try {
-          const ph = await compressImage(file);
-          (state.photos[fid] ||= []).push(ph);
-        } catch (err) { console.error(err); toast('Foto konnte nicht geladen werden.'); }
-      }
-      renderPhotos(fid); afterChange();
-    },
-  });
-  box.append(el('label', { class: 'addph' }, '+ Foto', inp));
+  box.append(...photoAddTiles(async files => {
+    for (const file of files) {
+      try { (state.photos[fid] ||= []).push(await compressImage(file)); }
+      catch (err) { console.error(err); toast('Foto konnte nicht geladen werden.'); }
+    }
+    renderPhotos(fid); afterChange();
+  }));
+}
+
+// Zwei Kacheln: Kamera direkt öffnen (capture) oder Bilder aus der Galerie wählen
+const ICON_CAM = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="4"/></svg>';
+const ICON_IMG = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-6-6-9 9"/></svg>';
+function photoAddTiles(onFiles) {
+  const mk = (label, icon, attrs) => {
+    const inp = el('input', { type: 'file', accept: 'image/*', ...attrs, onchange: e => { const fl = [...e.target.files]; e.target.value = ''; if (fl.length) onFiles(fl); } });
+    const lab = el('label', { class: 'addph' }, inp);
+    lab.insertAdjacentHTML('afterbegin', icon);
+    lab.append(el('span', {}, label));
+    return lab;
+  };
+  return [mk('Kamera', ICON_CAM, { capture: 'environment' }), mk('Aus Galerie', ICON_IMG, { multiple: true })];
 }
 
 function compressImage(file, max = 1600, q = 0.72) {
@@ -325,6 +371,8 @@ function valueText(f) {
   if (f.type === 'multi') return [...(Array.isArray(v) ? v : []), ...(other ? ['Andere: ' + other] : [])].join(', ');
   if (f.type === 'radio') return [v, other ? (v ? 'Andere: ' : '') + other : null].filter(Boolean).join(', ');
   if (f.type === 'date') return fmtDate(v);
+  if (f.type === 'datetime') return fmtDateTime(v);
+  if (f.type === 'auflagen') { const n = (v || []).length; return `${n} Auflage${n === 1 ? '' : 'n'}`; }
   if (f.ph) {
     const n = parseFloat(String(v).replace(',', '.'));
     return String(v) + (!isNaN(n) && (n < 6.5 || n > 9) ? '  (ausserhalb Soll 6.5 - 9.0)' : '');
@@ -488,21 +536,96 @@ function buildPdf() {
     }
   }
 
-  let any = false;
+  // Tabelle mit Kopfzeile; Kopf wird bei Seitenumbruch wiederholt
+  function table(cols, rows) {
+    const FS2 = 9, LH2 = 4.1, PAD = 2;
+    const LHF2 = LH2 / (FS2 * 0.3528);
+    const head = () => {
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5);
+      const hl = cols.map(c => doc.splitTextToSize(clean(c.t), c.w - 2 * PAD));
+      const hh = Math.max(...hl.map(l => l.length)) * 3.8 + 3;
+      let x = M;
+      // Füllfarbe vor jedem Rechteck setzen (Textfarbe überschreibt sie in jsPDF)
+      cols.forEach((c, i) => { doc.setFillColor(...C.label); doc.setDrawColor(...C.line); doc.rect(x, y, c.w, hh, 'FD'); doc.setTextColor(...C.ink); doc.text(hl[i], x + PAD, y + 4.2); x += c.w; });
+      y += hh;
+    };
+    need(20); head();
+    for (const r of rows) {
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(FS2);
+      const ls = r.cells.map((c, i) => doc.splitTextToSize(clean(c), cols[i].w - 2 * PAD).slice(0, 45));
+      const h = Math.max(...ls.map(l => l.length), 1) * LH2 + 3;
+      if (y + h > BOTTOM) { newPage(); head(); }
+      let x = M;
+      cols.forEach((c, i) => {
+        doc.setDrawColor(...C.line); doc.rect(x, y, c.w, h, 'S');
+        const warn = (r.warn || []).includes(i);
+        doc.setFont('helvetica', i === 0 || warn ? 'bold' : 'normal'); doc.setFontSize(FS2);
+        doc.setTextColor(...(warn ? C.warn : C.ink));
+        doc.text(ls[i], x + PAD, y + 4.5, { lineHeightFactor: LHF2 });
+        x += c.w;
+      });
+      y += h;
+    }
+    y += 2;
+  }
+
+  const ORD = orderedMaengel();
+  const mNr = m => 'M' + (ORD.indexOf(m) + 1);
+  const secTitle = id => (SCHEMA.find(x => x.id === id) || {}).title || '';
+  const refText = m => FIELDS[m.ref] ? FIELDS[m.ref].label : (m.refLabel || '');
+  const mangelRows = list => list.map(m => ({
+    cells: [mNr(m), refText(m), 'Mangel: ' + m.text + (m.massnahme ? '\nMassnahme: ' + m.massnahme : ''), m.verantwortlich || '-', m.frist ? fmtDate(m.frist) : '-'],
+    warn: [],
+  }));
+  const MCOLS = [{ t: 'Nr.', w: 11 }, { t: 'Punkt', w: 48 }, { t: 'Mangel / Massnahme', w: 75 }, { t: 'Verantwortlich', w: 26 }, { t: 'Frist', w: 20 }];
+  // Auflagen «nicht erfüllt» ohne eigenen Mangel erscheinen ebenfalls in der Massnahmenliste
+  const openAuflagen = [];
+  for (const s of SCHEMA) for (const f of s.fields) if (f.type === 'auflagen') (state.values[f.id] || []).forEach((a, i) => {
+    if (a.status === 'nicht erfüllt' && !state.maengel.some(m => m.ref === a.id)) openAuflagen.push({ s, a, nr: `A${i + 1}` });
+  });
+  const SKIP_PDF = new Set(['kenntnis_name']);
+  const sectionHasContent = s => !state.nrel[s.id] && (
+    s.fields.some(f => isVisible(f) && isFilled(f) && f.type !== 'signature' && !SKIP_PDF.has(f.id)) ||
+    state.maengel.some(m => m.section === s.id));
+
+  /* ---- Zusammenfassung (Seite 1) ---- */
+  const nrelList = SCHEMA.filter(x => state.nrel[x.id]).map(x => x.title);
+  const anyContent = SCHEMA.some(sectionHasContent) || nrelList.length || ORD.length;
+  if (!anyContent) return null;
+  sectionHead('Zusammenfassung');
+  const gb = v.gesamt_beurteilung;
+  row('Gesamtbeurteilung', gb || '-', gb && gb !== 'In Ordnung');
+  if (v.gesamt_eindruck) row('Eindruck der Baustelle', v.gesamt_eindruck);
+  if (v.bericht_vorfaelle === 'Ja') row('Umweltvorfall', 'Ja' + (v.vorfall_was ? ': ' + v.vorfall_was.split('\n')[0] : '') + ' (Details unter Berichterstattung)', true);
+  row('Mängel', ORD.length ? `${ORD.length} (siehe Massnahmenliste)` : 'Keine Mängel erfasst', ORD.length > 0);
+  if (openAuflagen.length) row('Auflagen nicht erfüllt', String(openAuflagen.length), true);
+  if (nrelList.length) row('Nicht relevante Bereiche', nrelList.join('; '));
+  if (v.gesamt_massnahmen) row('Weitere Massnahmen', v.gesamt_massnahmen);
+  if (v.bericht_naechste) row('Nächste Begehung', fmtDate(v.bericht_naechste));
+  if (v.gesamt_bem) row('Bemerkungen', v.gesamt_bem);
+  if (ORD.length || openAuflagen.length) {
+    subHead('Massnahmenliste');
+    table(MCOLS, [...mangelRows(ORD), ...openAuflagen.map(o => ({
+      cells: [o.nr, `${o.s.title}: Auflage (${o.a.herkunft})`, 'Auflage nicht erfüllt: ' + o.a.text + (o.a.bemerkung ? '\nBemerkung: ' + o.a.bemerkung : ''), '-', '-'],
+      warn: [],
+    }))]);
+  }
+
   for (const s of SCHEMA) {
+    if (s.id === 'gesamt' || !sectionHasContent(s)) continue;
     // Nur sichtbare + ausgefüllte Felder; Zwischentitel nur, wenn darunter etwas ausgefüllt ist
     const items = [];
     let pendingSub = null;
     for (const f of s.fields) {
       if (f.type === 'sub') { pendingSub = f; continue; }
-      if (!isVisible(f) || !isFilled(f)) continue;
+      if (!isVisible(f) || !isFilled(f) || f.type === 'signature' || f.type === 'auflagen' || SKIP_PDF.has(f.id)) continue;
       if (pendingSub) { items.push(pendingSub); pendingSub = null; }
       items.push(f);
     }
-    if (!items.length) continue;
-    any = true;
+    const aufl = s.fields.filter(f => f.type === 'auflagen' && isFilled(f)).flatMap(f => state.values[f.id].filter(a => String(a.text || '').trim()));
+    const secM = ORD.filter(m => m.section === s.id);
+    const f0 = items[0] || {};
     // Titel nicht allein am Seitenende: Platz für den ersten Inhalt mitrechnen (Karte bzw. Foto)
-    const f0 = items[0];
     if (f0.type === 'gis') {
       // gleiche Rechnung wie in gisMaps(): Karte + ca. 5 Zeilen Angaben (+ Legende, falls sie auf die Seite passt)
       const m0 = state.gis[f0.id][0], mh0 = W * m0.h / m0.w, blk = 12 + mh0 + 4 + 5 * LH + 4;
@@ -521,8 +644,33 @@ function buildPdf() {
         row(f.label, txt, f.ph && /ausserhalb/.test(txt));
       }
     }
+    if (aufl.length) {
+      subHead('Auflagen aus Baubewilligung / UVB');
+      table([{ t: 'Nr.', w: 11 }, { t: 'Auflage', w: 82 }, { t: 'Herkunft', w: 28 }, { t: 'Status', w: 24 }, { t: 'Bemerkung', w: 35 }],
+        aufl.map((a, i) => ({ cells: [`A${i + 1}`, a.text, a.herkunft || '-', a.status || 'nicht geprüft', a.bemerkung || ''], warn: a.status === 'nicht erfüllt' ? [3] : [] })));
+    }
+    if (secM.length) {
+      subHead('Mängel');
+      table(MCOLS, mangelRows(secM));
+      const ph = secM.flatMap(m => (m.photos || []).map((p, k) => ({ ...p, id: p.id || m.id + k, caption: `${mNr(m)}: ${m.text}`.slice(0, 120) })));
+      if (ph.length) photos(ph);
+    }
   }
-  if (!any) return null;
+
+  /* ---- Kenntnisnahme / Unterschrift ---- */
+  if (v.kenntnis_name || v.kenntnis_sign) {
+    sectionHead('Kenntnisnahme Bauleitung');
+    need(45);
+    y += 4;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(FS); doc.setTextColor(...C.ink);
+    doc.text(clean('Name, Funktion: ' + (v.kenntnis_name || '-')), M, y + 3);
+    doc.text(clean('Datum: ' + (v.datum ? fmtDate(v.datum) : '-')), M, y + 3 + LH + 1);
+    y += 2 * LH + 4;
+    if (v.kenntnis_sign) doc.addImage(v.kenntnis_sign, 'PNG', M, y, 75, 25, 'sign', 'FAST');
+    doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3); doc.line(M, y + 25, M + 75, y + 25); doc.setLineWidth(0.2);
+    doc.setFontSize(8.5); doc.setTextColor(...C.muted); doc.text('Unterschrift', M, y + 29);
+    y += 32;
+  }
 
   // Kopfzeile (Datum, Bearbeitung, Logo) und Fusszeile (Projekt-Nr., Seite) auf jeder Seite
   const n = doc.getNumberOfPages();
@@ -562,7 +710,8 @@ function fileName() {
 }
 
 let lastPdf = null;
-function onPdf() {
+function onPdf() { checkRequired(makePdf); }
+function makePdf() {
   const btn = document.getElementById('btnPdf');
   btn.disabled = true; btn.textContent = 'Erstelle PDF …';
   setTimeout(() => {
@@ -620,7 +769,7 @@ async function storePresets() {
 }
 
 // Felder, die in einem Preset vorkommen dürfen
-const presetable = f => !['photos', 'sub', 'gis'].includes(f.type) && f.id !== 'datum';
+const presetable = f => !['photos', 'sub', 'gis', 'signature', 'mlist'].includes(f.type) && f.id !== 'datum';
 // Werte eines Feldes inkl. «Andere»-Text
 function fieldValues(src, id) {
   const out = {};
@@ -634,6 +783,7 @@ function applyPreset(p) {
   for (const id of presetFieldIds(p)) {
     delete state.values[id]; delete state.values[id + '_andere'];
     Object.assign(state.values, fieldValues(p.values, id));
+    if (FIELDS[id].type === 'auflagen') state.values[id] = resetAuflagen(state.values[id]);
   }
 }
 
@@ -699,6 +849,7 @@ async function savePreset() {
   if (existing && !confirm(`Preset «${existing.name}» überschreiben?`)) return;
   const values = {};
   ids.forEach(id => Object.assign(values, fieldValues(state.values, id)));
+  ids.filter(id => FIELDS[id].type === 'auflagen').forEach(id => { values[id] = resetAuflagen(values[id]).map(({ text, herkunft }) => ({ text, herkunft })); });
   const p = { id: existing ? existing.id : uid(), name, values: JSON.parse(JSON.stringify(values)), updated: new Date().toISOString() };
   presets = presets.filter(x => x !== existing);
   presets.push(p);
@@ -737,7 +888,9 @@ async function importPresets(file) {
     for (const [k, v] of Object.entries(raw.values)) {
       const f = FIELDS[k.replace(/_andere$/, '')];
       if (!f || !presetable(f)) continue;
-      if (f.type === 'multi' && !k.endsWith('_andere')) {
+      if (f.type === 'auflagen') {
+        if (Array.isArray(v)) values[k] = resetAuflagen(v.filter(a => a && typeof a === 'object')).map(({ text, herkunft }) => ({ text, herkunft }));
+      } else if (f.type === 'multi' && !k.endsWith('_andere')) {
         if (Array.isArray(v)) values[k] = v.filter(x => f.options.includes(x));
       } else if (typeof v === 'string' || typeof v === 'number') values[k] = String(v);
     }
@@ -773,11 +926,17 @@ async function init() {
   catch { state = freshState(false); toast('Lokaler Speicher nicht verfügbar – Entwürfe werden nicht gesichert.'); }
   state.photos ||= {};
   state.gis ||= {};
+  state.maengel ||= [];
+  state.nrel ||= {};
   await loadPresets();
   loadPdfLogo();
   document.getElementById('appVersion').textContent = 'App-Version ' + APP_VERSION;
   render();
   setSaveState('');
+  $('mgSave').onclick = saveMangel;
+  $('mgDelete').onclick = deleteMangel;
+  $('mgCancel').onclick = () => $('dlgMangel').close();
+  autoWeather();
 
   $('btnPresets').onclick = () => { renderPresetList(); $('dlgPresets').showModal(); };
   $('btnPresetsClose').onclick = () => $('dlgPresets').close();
@@ -807,6 +966,7 @@ async function init() {
     if (p) applyPreset(p);
     $('dlgNew').close();
     render(); flushSave(); window.scrollTo(0, 0);
+    autoWeather();
     toast(p ? `Neues Protokoll mit Preset «${p.name}».` : 'Neues Protokoll gestartet.');
   };
 

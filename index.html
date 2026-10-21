@@ -174,6 +174,38 @@ dialog.tall { max-height: 88vh; overflow-y: auto; }
 .gis .mitem input { border: 0; border-top: 1px solid var(--line); font-size: 14px; }
 .gis .msg { font-size: 13.5px; color: var(--muted); }
 .gis .msg.err { color: var(--warn); }
+
+/* Version 7: Abschnitt n. rel., Auflagen, Mängel, Unterschrift, Wetter */
+.secfields { display: contents; }
+.secfields.hidden { display: none; }
+.sectools { width: 100%; display: flex; flex-wrap: wrap; gap: 6px; }
+.btn[aria-pressed=true] { background: #000; color: #fff; }
+.badge.warn { background: var(--warn); color: #fff; }
+.req { color: var(--warn); }
+.mrow { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; margin-top: 2px; }
+.mbtn { font: inherit; font-size: 13px; font-weight: 700; color: var(--warn); background: none; border: 0; padding: 4px 0; min-height: 28px; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+.mlist { display: flex; flex-direction: column; gap: 6px; width: 100%; }
+.mlist:empty { display: none; }
+.mcard { text-align: left; font: inherit; font-size: 14px; color: var(--ink); background: #fff6ec; border: 0; border-left: 4px solid var(--warn); padding: 8px 10px; cursor: pointer; width: 100%; }
+.mcard small { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.mcard small.sec { margin: 0 0 2px; text-transform: uppercase; letter-spacing: .04em; font-size: 11px; }
+#mlAll { display: flex; }
+details.auflagen { width: 100%; border: 1px solid var(--line); background: #fafafa; }
+details.auflagen > summary { cursor: pointer; padding: 11px 12px; font-size: 14px; font-weight: 700; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+details.auflagen > summary .hint { font-weight: 400; }
+.aufl-items { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 10px; align-items: flex-start; }
+.aufl { width: 100%; background: #fff; border: 1px solid var(--line); border-left: 4px solid #000; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+.aufl.bad { border-left-color: var(--warn); }
+.aufl-head { display: flex; gap: 8px; align-items: center; }
+.aufl-head select { flex: 1; min-height: 38px; padding: 6px 30px 6px 8px; font-size: 15px; }
+canvas.sig { display: block; width: 100%; aspect-ratio: 3 / 1; border: 1px solid var(--field); background: #fff linear-gradient(#d9d9d9, #d9d9d9) no-repeat left 4% bottom 20% / 92% 1px; touch-action: none; }
+.wxrow { display: flex; gap: 8px; align-items: center; justify-content: space-between; margin-top: 6px; }
+.wxrow .hint { margin: 0; }
+.addph { flex-direction: column; gap: 4px; }
+dialog ul { margin: 0 0 14px; padding-left: 20px; }
+dialog textarea, dialog input[type=text], dialog input[type=date] { margin-bottom: 12px; }
+#mgRef { font-size: 13px; color: var(--muted); margin: -2px 0 12px; }
+#mgPhotos { margin-bottom: 14px; }
 </style>
 </head>
 <body>
@@ -244,12 +276,44 @@ dialog.tall { max-height: 88vh; overflow-y: auto; }
   </div>
 </dialog>
 
+<dialog id="dlgMangel" class="tall">
+  <h2 id="mgTitle">Mangel erfassen</h2>
+  <div id="mgRef"></div>
+  <label class="lbl" for="mgText">Mangel <span class="req">*</span></label>
+  <textarea id="mgText" rows="3" placeholder="Was ist nicht in Ordnung?"></textarea>
+  <label class="lbl" for="mgMass">Massnahme</label>
+  <textarea id="mgMass" rows="2" placeholder="Was ist zu tun?"></textarea>
+  <label class="lbl" for="mgVer">Verantwortlich</label>
+  <input type="text" id="mgVer" list="mgVerList" autocomplete="off" placeholder="z.B. Bauleitung, Unternehmer">
+  <datalist id="mgVerList"></datalist>
+  <label class="lbl" for="mgFrist">Frist</label>
+  <input type="date" id="mgFrist">
+  <div class="lbl">Fotos</div>
+  <div class="photos" id="mgPhotos"></div>
+  <div class="stack">
+    <button class="btn primary" id="mgSave" type="button">Speichern</button>
+    <button class="btn" id="mgDelete" type="button">Mangel löschen</button>
+    <button class="btn" id="mgCancel" type="button">Abbrechen</button>
+  </div>
+</dialog>
+
+<dialog id="dlgReq">
+  <h2>Pflichtfelder fehlen</h2>
+  <p>Diese Angaben fehlen im Protokoll:</p>
+  <ul id="reqList"></ul>
+  <div class="stack">
+    <button class="btn primary" id="reqFix" type="button">Ergänzen</button>
+    <button class="btn" id="reqGo" type="button">Trotzdem PDF erstellen</button>
+  </div>
+</dialog>
+
 <div class="toast" id="toast"></div>
 
-<script src="jspdf.umd.min.js?v=6"></script>
-<script src="schema.js?v=6"></script>
-<script src="gis-layers.js?v=6"></script>
-<script src="gis.js?v=6"></script>
-<script src="app.js?v=6"></script>
+<script src="jspdf.umd.min.js?v=8"></script>
+<script src="schema.js?v=8"></script>
+<script src="gis-layers.js?v=8"></script>
+<script src="gis.js?v=8"></script>
+<script src="features.js?v=8"></script>
+<script src="app.js?v=8"></script>
 </body>
 </html>

@@ -11,20 +11,24 @@ const ZONEN = ['S1 (Fassungsbereich)', 'S2 (Engere Schutzzone)', 'S3 (Weitere Sc
 const SCHEMA = [
   {
     id: 'allg', title: 'Allgemeine Angaben', fields: [
-      { id: 'datum', label: 'Datum', type: 'date' },
-      { id: 'wetter', label: 'Wetter', type: 'text' },
-      { id: 'projekt', label: 'Projektnr. und Ort', type: 'text', keep: true },
-      { id: 'ubbName', label: 'UBB-Person (Name)', type: 'text', width: 'w2', profile: true },
+      { id: 'datum', label: 'Datum', type: 'date', req: true },
+      { id: 'wetter', label: 'Wetter', type: 'text', weather: true },
+      { id: 'projekt', label: 'Projektnr. und Ort', type: 'text', keep: true, req: true },
+      { id: 'ubbName', label: 'UBB-Person (Name)', type: 'text', width: 'w2', profile: true, req: true },
       { id: 'ubbKuerzel', label: 'Kürzel', type: 'text', width: 'w1', profile: true },
       { id: 'bauvorhaben', label: 'Bauvorhaben', type: 'text', keep: true },
       { id: 'artBaustelle', label: 'Art d. Baustelle', type: 'text', keep: true },
-      { id: 'artBegehung', label: 'Art d. Begehung', type: 'radio', options: ['Allg. Begehung', 'Probenahme', 'Abnahme', 'Amphibienkontrolle'], other: true },
+      { id: 'artBegehung', label: 'Art d. Begehung', type: 'radio', options: ['Allg. Begehung', 'Probenahme', 'Abnahme', 'Amphibienkontrolle'], other: true, req: true },
       { id: 'bauleitung', label: 'Bauleitung', hint: 'Name, Adresse, Tel.', type: 'textarea', keep: true },
       { id: 'teilnehmende', label: 'Teilnehmende', hint: 'Name, Funktionen', type: 'textarea' },
       { id: 'besonderheiten', label: 'Besonderheiten', hint: 'z.B. Neophyten, KbS Standort, etc.', type: 'textarea' },
       { id: 'gwSchutz', label: 'Grundwasserschutzgebiet', type: 'radio', options: [...ZONEN, 'Keines'], keep: true },
       { id: 'kbs', label: 'KbS-Standort betroffen', type: 'radio', options: J, keep: true },
       { id: 'besAndere', label: 'Andere', type: 'text' },
+      { id: 'verteiler', label: 'Verteiler', hint: 'Name, Funktion/Firma – eine Person pro Zeile', type: 'textarea', keep: true },
+      { id: 'kenntnis_sub', label: 'Kenntnisnahme Bauleitung (optional)', type: 'sub' },
+      { id: 'kenntnis_name', label: 'Name, Funktion', type: 'text', keep: true },
+      { id: 'kenntnis_sign', label: 'Unterschrift', hint: 'Mit dem Finger im Feld unterschreiben', type: 'signature' },
     ]
   },
   {
@@ -174,6 +178,12 @@ const SCHEMA = [
   {
     id: 'bericht', title: 'Berichterstattung / Reporting', noPhotos: true, fields: [
       { id: 'bericht_vorfaelle', label: 'Sind seit der letzten Begehung Umweltvorfälle aufgetreten?', type: 'radio', options: J },
+      { id: 'vorfall_was', label: 'Ereignis: Was ist passiert?', hint: 'Art, Ort, betroffene Umweltbereiche, ausgetretene Stoffe/Mengen', type: 'textarea', showIf: { f: 'bericht_vorfaelle', v: 'Ja' } },
+      { id: 'vorfall_wann', label: 'Wann?', type: 'datetime', showIf: { f: 'bericht_vorfaelle', v: 'Ja' } },
+      { id: 'vorfall_massnahmen', label: 'Sofortmassnahmen', hint: 'Was wurde von wem unternommen?', type: 'textarea', showIf: { f: 'bericht_vorfaelle', v: 'Ja' } },
+      { id: 'vorfall_gemeldet', label: 'Gemeldet an', type: 'multi', options: ['Bauleitung', 'Bauherrschaft', 'Gemeinde', 'Kant. Umweltfachstelle', 'Feuerwehr / Ölwehr', 'Polizei', 'Noch nicht gemeldet'], other: true, showIf: { f: 'bericht_vorfaelle', v: 'Ja' } },
+      { id: 'vorfall_meldezeit', label: 'Meldung am', type: 'datetime', showIf: { f: 'bericht_vorfaelle', v: 'Ja' } },
+      { id: 'vorfall_fotos', label: 'Fotos Ereignis', type: 'photos', showIf: { f: 'bericht_vorfaelle', v: 'Ja' } },
       { id: 'bericht_pendenzen', label: 'Bestehen offene Pendenzen / Auflagen aus der Baubewilligung?', type: 'radio', options: J },
       { id: 'bericht_pendenzenText', label: 'Offene Pendenzen / Verantwortliche Person / Termin', type: 'textarea' },
       { id: 'bericht_behoerde', label: 'Wird ein formeller Bericht an die Behörde ausgelöst?', type: 'radio', options: J },
@@ -183,8 +193,10 @@ const SCHEMA = [
   },
   {
     id: 'gesamt', title: 'Gesamteindruck der Baustelle', fields: [
+      { id: 'gesamt_beurteilung', label: 'Gesamtbeurteilung', type: 'radio', options: ['In Ordnung', 'Kleinere Mängel', 'Erhebliche Mängel'] },
       { id: 'gesamt_eindruck', label: 'Eindruck der Baustelle', type: 'textarea' },
-      { id: 'gesamt_massnahmen', label: 'Erforderliche Massnahmen, inkl. zuständiger Person', type: 'textarea' },
+      { id: 'gesamt_ml', label: 'Massnahmenliste (automatisch aus den erfassten Mängeln)', type: 'mlist' },
+      { id: 'gesamt_massnahmen', label: 'Weitere erforderliche Massnahmen, inkl. zuständiger Person', type: 'textarea' },
       { id: 'gesamt_bem', label: 'Bemerkungen', type: 'textarea' },
     ]
   },
@@ -197,6 +209,10 @@ const SCHEMA = [
   },
 ];
 
+// Umweltbereiche: Abschnitte mit Mängelerfassung, «n. rel.» für den ganzen Abschnitt und Auflagen
+const NON_ENV = ['allg', 'bericht', 'gesamt', 'gis'];
+for (const s of SCHEMA) s.env = !NON_ENV.includes(s.id);
+
 // Fotofeld in jedem Abschnitt ohne eigenes Fotofeld ergänzen (vor "Bemerkungen")
 for (const s of SCHEMA) {
   if (s.noPhotos || s.fields.some(f => f.type === 'photos')) continue;
@@ -204,4 +220,9 @@ for (const s of SCHEMA) {
   const last = s.fields[s.fields.length - 1];
   if (last && /_bem$/.test(last.id)) s.fields.splice(s.fields.length - 1, 0, f);
   else s.fields.push(f);
+}
+
+// Optionaler Bereich «Auflagen aus Baubewilligung/UVB» am Ende jedes Umweltbereichs
+for (const s of SCHEMA) {
+  if (s.env) s.fields.push({ id: s.id + '_auflagen', label: 'Auflagen aus Baubewilligung / UVB', type: 'auflagen', keep: true });
 }

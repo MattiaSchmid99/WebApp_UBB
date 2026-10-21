@@ -1,7 +1,7 @@
 // Offline-Cache. Bei jeder Änderung an den App-Dateien VERSION erhöhen,
 // damit die Smartphones die neue Version laden.
-const VERSION = 'ubb-v6';
-const FILES = ['./', 'index.html', 'app.js', 'schema.js', 'gis-layers.js', 'gis.js', 'jspdf.umd.min.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+const VERSION = 'ubb-v8';
+const FILES = ['./', 'index.html', 'app.js', 'schema.js', 'gis-layers.js', 'gis.js', 'features.js', 'jspdf.umd.min.js', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 const OPTIONAL = ['afry-logo.png', 'afry-logo-white.png']; // Logo-Dateien, falls vorhanden
 
 self.addEventListener('install', e => {

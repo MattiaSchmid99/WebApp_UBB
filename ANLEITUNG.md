@@ -36,6 +36,18 @@ Nach dem ersten Öffnen funktioniert die App auch ohne Netz.
 - Es gibt immer nur einen offenen Entwurf. Vor «Neu» das PDF speichern.
 - Browserdaten löschen bzw. die Home-Bildschirm-App entfernen löscht den offenen Entwurf.
 
+## 3a. Neu in Version 7
+
+- **Pflichtfelder** (mit * markiert): Datum, Projekt, UBB-Person, Art der Begehung. Fehlt eines, warnt die App vor dem PDF.
+- **Wetter** wird beim Start eines neuen Protokolls automatisch abgerufen: Messwerte der nächsten MeteoSchweiz-Station (SwissMetNet, offene Daten): Temperatur, Feuchte, Wind, Niederschlag der letzten 24 h, tagsüber Sonnenscheindauer der letzten Stunde. Station und Distanz stehen im Text. Bewölkung bei Bedarf von Hand ergänzen. Knopf «Wetter abrufen» aktualisiert.
+- **Verteiler** und **Kenntnisnahme Bauleitung** (Name + Unterschrift mit dem Finger) in den Allgemeinen Angaben. Die Unterschrift erscheint am Schluss des PDF.
+- **Abschnitt nicht relevant**: oben in jedem Umweltbereich. Der Abschnitt wird ausgeblendet und im PDF nur in der Zusammenfassung aufgeführt. «Offene Fragen: n. rel.» setzt alle noch leeren Ja/Nein/n. rel.-Fragen auf «n. rel.».
+- **Mängel**: bei jeder Frage «+ Mangel» → Beschreibung, Massnahme, Verantwortlich, Frist, Fotos. Die Mängel werden nummeriert (M1, M2 …) und erscheinen im Abschnitt, in der Massnahmenliste unter «Gesamteindruck» und auf Seite 1 des PDF.
+- **Auflagen aus Baubewilligung / UVB**: aufklappbarer Bereich am Ende jedes Umweltbereichs. Auflagen erfassen, Herkunft und Status (erfüllt, nicht erfüllt, offen, n. rel.) setzen. Auflagen gehören zu den Projektdaten: Sie werden bei «Neu → Projektdaten übernehmen» und in Presets mitgenommen, der Status wird dabei zurückgesetzt. Nicht erfüllte Auflagen erscheinen in der Massnahmenliste.
+- **Zusammenfassung auf Seite 1** des PDF: Gesamtbeurteilung, Eindruck, Umweltvorfall, Anzahl Mängel, nicht relevante Bereiche, Massnahmenliste mit Fristen.
+- **Umweltvorfall**: bei «Ja» Ereignisprotokoll mit Was, Wann, Sofortmassnahmen, Gemeldet an, Meldezeit, Fotos.
+- **Fotos**: «Kamera» öffnet direkt die Kamera, «Aus Galerie» wählt vorhandene Bilder.
+
 ## 4. Presets (z.B. pro Projekt)
 
 Ein Preset füllt ausgewählte Felder vor: Projektnummer, Bauleitung, Schutzzonen, Massnahmenstufen, bekannte Neophyten usw.
@@ -83,7 +95,7 @@ Hinweise:
 - **Fragen, Optionen, Abschnitte:** in `schema.js`. Labels und Optionen frei änderbar. Die `id` eines bestehenden Feldes nicht ändern.
 - **PDF-Layout:** Funktion `buildPdf` in `app.js`. Schrift Helvetica 10 pt (PDF-Standardschrift, entspricht Arial in Form und Laufweite).
 - **GIS-Layer:** `gis-layers.js`.
-- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v6';` hochzählen (`ubb-v7` …), in `index.html` bei allen `<script src="…?v=6">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
+- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v8';` hochzählen (`ubb-v9` …), in `index.html` bei allen `<script src="…?v=8">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
 
 ## Dateien
 
@@ -92,6 +104,7 @@ Hinweise:
 | index.html | Oberfläche |
 | schema.js | Formularstruktur (Abschnitte, Fragen, Optionen) |
 | app.js | Logik: Speichern, Fotos, Presets, PDF, Teilen |
+| features.js | Mängel, Auflagen, Unterschrift, Wetter, Pflichtfelder, Abschnitt n. rel. |
 | gis.js | GIS-Lagekontrolle (GPS, Kanton, Kartenbild) |
 | gis-layers.js | Layerliste aus der GIS Umweltübersicht |
 | afry-logo.png, afry-logo-white.png | Logo |
