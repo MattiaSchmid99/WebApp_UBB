@@ -143,79 +143,114 @@ async function loadLegend(layer) {
   try { return { data: c.toDataURL('image/png'), w, h }; } catch { return null; }
 }
 
-/* ---------- Karte zusammensetzen ---------- */
+/* ---------- Karte zusammensetzen (Darstellung wie Kartenblätter der «GIS Umweltübersicht») ---------- */
+const BG_SAT = 0.6;                       // Sättigung Hintergrund 60 % (wie Vorgabe GIS-App)
+const OV_W_MM = 44, OV_H_MM = 36;         // Übersichtskarte unten rechts
+const PX_PER_MM = MAP_PX_W / MAP_MM_W;
+
+// Bild entsättigen (Canvas-Filter wird nicht von allen Browsern unterstützt)
+function drawDesaturated(g, img, x, y, w, h, sat) {
+  const c = document.createElement('canvas'); c.width = w; c.height = h;
+  const cg = c.getContext('2d'); cg.drawImage(img, 0, 0, w, h);
+  try {
+    const d = cg.getImageData(0, 0, w, h), p = d.data;
+    for (let i = 0; i < p.length; i += 4) {
+      const l = 0.299 * p[i] + 0.587 * p[i + 1] + 0.114 * p[i + 2];
+      p[i] = l + (p[i] - l) * sat; p[i + 1] = l + (p[i + 1] - l) * sat; p[i + 2] = l + (p[i + 2] - l) * sat;
+    }
+    cg.putImageData(d, 0, 0);
+  } catch { /* ohne CORS: unverändert */ }
+  g.drawImage(c, x, y);
+}
+function fitAspect([x0, y0, x1, y1], asp, grow, minW) {
+  const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2; let w = (x1 - x0) * grow, h = (y1 - y0) * grow;
+  if (w / h < asp) w = h * asp; else h = w / asp;
+  if (w < minW) { w = minW; h = w / asp; }
+  return [cx - w / 2, cy - h / 2, cx + w / 2, cy + h / 2];
+}
+const getMapUrlSize = (url, layers, bbox, w, h, transparent) => wmsUrl(url, {
+  SERVICE: 'WMS', VERSION: '1.3.0', REQUEST: 'GetMap', LAYERS: layers, STYLES: '', CRS: 'EPSG:2056',
+  BBOX: bbox.map(v => v.toFixed(1)).join(','), WIDTH: Math.round(w), HEIGHT: Math.round(h),
+  FORMAT: 'image/png', TRANSPARENT: transparent ? 'TRUE' : 'FALSE',
+});
+// weisser Kasten mit Text (Nordpfeil, Massstab)
+function boxText(g, x, y, w, h) { g.fillStyle = 'rgba(255,255,255,0.85)'; g.fillRect(x, y, w, h); }
+
 async function buildMap(layer, bg, scale, pos) {
   const gw = MAP_MM_W / 1000 * scale, gh = gw * MAP_PX_H / MAP_PX_W;
   const bbox = [pos.E - gw / 2, pos.N - gh / 2, pos.E + gw / 2, pos.N + gh / 2];
+  const ovPxW = Math.round(OV_W_MM * PX_PER_MM), ovPxH = Math.round(OV_H_MM * PX_PER_MM);
+  const ob = fitAspect(bbox, OV_W_MM / OV_H_MM, 7, 4000);
   const c = document.createElement('canvas'); c.width = MAP_PX_W; c.height = MAP_PX_H;
   const g = c.getContext('2d');
-  g.fillStyle = '#fff'; g.fillRect(0, 0, MAP_PX_W, MAP_PX_H);
+  g.fillStyle = '#eee'; g.fillRect(0, 0, MAP_PX_W, MAP_PX_H);
   const problems = [];
 
-  const [bgImg, ...ovImgs] = await Promise.all([
+  const [bgImg, ovBg, ...ovImgs] = await Promise.all([
     loadImg(getMapUrl(GEOADMIN, bg.layers, bbox, false)).catch(e => { problems.push('Hintergrund: ' + e.message); return null; }),
+    loadImg(getMapUrlSize(GEOADMIN, bg.layers, ob, ovPxW, ovPxH, false)).catch(() => null),
     ...layer.src.map(s => loadImg(getMapUrl(s.url, s.layers, bbox, true)).catch(e => { problems.push(`${new URL(s.url).host}: ${e.message}`); return null; })),
   ]);
-  if (bgImg) { g.globalAlpha = bg.id === 'luft' ? 1 : 0.85; g.drawImage(bgImg, 0, 0); g.globalAlpha = 1; }
+  if (bgImg) drawDesaturated(g, bgImg, 0, 0, MAP_PX_W, MAP_PX_H, BG_SAT);
   const okOverlays = ovImgs.filter(Boolean);
   okOverlays.forEach(i => { g.globalAlpha = layer.opacity ?? 0.8; g.drawImage(i, 0, 0); });
   g.globalAlpha = 1;
 
-  const px = gw / MAP_PX_W; // m pro Pixel
-  const cx = MAP_PX_W / 2, cy = MAP_PX_H / 2;
-  // Genauigkeitskreis
-  if (pos.acc && pos.acc / px > 12) {
-    g.beginPath(); g.arc(cx, cy, pos.acc / px, 0, Math.PI * 2);
-    g.fillStyle = 'rgba(220,0,0,0.10)'; g.fill();
-    g.setLineDash([10, 8]); g.lineWidth = 3; g.strokeStyle = '#d00'; g.stroke(); g.setLineDash([]);
+  const mpp = gw / MAP_PX_W; // m pro Pixel
+  const cx = MAP_PX_W / 2, cy = MAP_PX_H / 2, k = MAP_PX_W / 1000; // k: Massstab gegenüber viewBox 1000 der GIS-App
+  // GPS-Genauigkeit (gestrichelt)
+  if (pos.acc && pos.acc / mpp > 14 * k) {
+    g.beginPath(); g.arc(cx, cy, pos.acc / mpp, 0, Math.PI * 2);
+    g.fillStyle = 'rgba(220,0,0,0.08)'; g.fill();
+    g.setLineDash([10, 8]); g.lineWidth = 2.5; g.strokeStyle = '#d00'; g.stroke(); g.setLineDash([]);
   }
-  // Fadenkreuz + Punkt
-  g.lineWidth = 5; g.strokeStyle = '#fff';
-  g.beginPath(); g.moveTo(cx - 34, cy); g.lineTo(cx - 12, cy); g.moveTo(cx + 12, cy); g.lineTo(cx + 34, cy);
-  g.moveTo(cx, cy - 34); g.lineTo(cx, cy - 12); g.moveTo(cx, cy + 12); g.lineTo(cx, cy + 34); g.stroke();
-  g.lineWidth = 2.5; g.strokeStyle = '#d00'; g.stroke();
-  g.beginPath(); g.arc(cx, cy, 9, 0, Math.PI * 2); g.fillStyle = '#d00'; g.fill(); g.lineWidth = 3; g.strokeStyle = '#fff'; g.stroke();
+  // Standort wie Projektpunkt der GIS-App: roter Kreis mit Fadenkreuz
+  g.strokeStyle = '#d00'; g.lineWidth = 3 * k;
+  g.beginPath(); g.arc(cx, cy, 14 * k, 0, Math.PI * 2); g.stroke();
+  g.beginPath(); g.moveTo(cx - 26 * k, cy); g.lineTo(cx + 26 * k, cy); g.moveTo(cx, cy - 26 * k); g.lineTo(cx, cy + 26 * k); g.stroke();
 
-  // Titelbox oben links
-  g.font = 'bold 26px Arial, Helvetica, sans-serif';
-  const title = (layer.canton ? `Kanton ${layer.canton}: ` : '') + layer.label, sub = `1:${fmtCH(scale)} · ${bg.label}`;
-  const tw = Math.min(MAP_PX_W - 160, Math.max(g.measureText(title).width, 300) + 28);
-  g.fillStyle = 'rgba(255,255,255,0.92)'; g.fillRect(0, 0, tw, 76);
-  g.fillStyle = '#000'; g.fillRect(0, 0, 6, 76);
-  g.fillText(fitText(g, title, tw - 28), 18, 34);
-  g.font = '22px Arial, Helvetica, sans-serif'; g.fillStyle = '#333'; g.fillText(sub, 18, 64);
+  const u = PX_PER_MM; // 1 mm in Pixel
+  // Nordpfeil oben rechts: «N ▲»
+  g.font = `bold ${Math.round(9 * 0.3528 * u)}px Arial, Helvetica, sans-serif`; g.textAlign = 'center';
+  const nW = 8 * u, nH = 10 * u, nX = MAP_PX_W - 4 * u - nW, nY = 4 * u;
+  boxText(g, nX, nY, nW, nH);
+  g.fillStyle = '#000'; g.fillText('N', nX + nW / 2, nY + 4.4 * u);
+  g.beginPath(); g.moveTo(nX + nW / 2, nY + 5.4 * u); g.lineTo(nX + nW / 2 - 1.6 * u, nY + 8.4 * u); g.lineTo(nX + nW / 2 + 1.6 * u, nY + 8.4 * u); g.closePath(); g.fill();
 
-  // Nordpfeil oben rechts
-  g.fillStyle = 'rgba(255,255,255,0.92)'; g.fillRect(MAP_PX_W - 70, 0, 70, 92);
-  g.fillStyle = '#000'; g.beginPath(); g.moveTo(MAP_PX_W - 35, 14); g.lineTo(MAP_PX_W - 52, 58); g.lineTo(MAP_PX_W - 35, 48); g.lineTo(MAP_PX_W - 18, 58); g.closePath(); g.fill();
-  g.font = 'bold 24px Arial, Helvetica, sans-serif'; g.textAlign = 'center'; g.fillText('N', MAP_PX_W - 35, 84); g.textAlign = 'left';
+  // Massstabsbalken unten links: Länge oben, Balken, Massstab unten
+  const steps = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000];
+  const len = steps.filter(x => x <= gw / 4).pop() || 10, lpx = len / mpp;
+  const fs = Math.round(7.5 * 0.3528 * u);
+  g.font = `${fs}px Arial, Helvetica, sans-serif`; g.textAlign = 'left';
+  const sbW = lpx + 4 * u, sbH = 12 * u, sbX = 4 * u, sbY = MAP_PX_H - 4 * u - sbH;
+  boxText(g, sbX, sbY, sbW, sbH);
+  g.fillStyle = '#000'; g.fillText(len >= 1000 ? `${len / 1000} km` : `${len} m`, sbX + 2 * u, sbY + 1 * u + fs);
+  const by = sbY + 1.5 * u + fs; g.lineWidth = 0.3 * u; g.strokeStyle = '#000';
+  g.beginPath(); g.moveTo(sbX + 2 * u, by); g.lineTo(sbX + 2 * u, by + 2 * u); g.lineTo(sbX + 2 * u + lpx, by + 2 * u); g.lineTo(sbX + 2 * u + lpx, by); g.stroke();
+  g.fillText(`1:${fmtCH(scale)}`, sbX + 2 * u, by + 2.6 * u + fs);
 
-  // Massstabsbalken unten links
-  const target = gw / 5, pow = 10 ** Math.floor(Math.log10(target));
-  const len = [1, 2, 5, 10].map(k => k * pow).filter(v => v <= target).pop() || pow;
-  const lpx = len / px;
-  g.fillStyle = 'rgba(255,255,255,0.92)'; g.fillRect(0, MAP_PX_H - 64, lpx + 60, 64);
-  g.fillStyle = '#000'; g.fillRect(20, MAP_PX_H - 26, lpx, 10);
-  g.fillStyle = '#fff'; g.fillRect(20 + lpx / 4, MAP_PX_H - 24, lpx / 4, 6); g.fillRect(20 + lpx * 3 / 4, MAP_PX_H - 24, lpx / 4, 6);
-  g.fillStyle = '#000'; g.font = '20px Arial, Helvetica, sans-serif';
-  g.fillText('0', 16, MAP_PX_H - 36); g.textAlign = 'right';
-  g.fillText(len >= 1000 ? `${len / 1000} km` : `${len} m`, 24 + lpx, MAP_PX_H - 36); g.textAlign = 'left';
-
-  // Quellenvermerk unten rechts
-  const attr = `Hintergrund © swisstopo · Daten: ${layer.by}`;
-  g.font = '17px Arial, Helvetica, sans-serif';
-  const aw = g.measureText(attr).width + 20;
-  g.fillStyle = 'rgba(255,255,255,0.85)'; g.fillRect(MAP_PX_W - aw, MAP_PX_H - 30, aw, 30);
-  g.fillStyle = '#333'; g.fillText(attr, MAP_PX_W - aw + 10, MAP_PX_H - 10);
+  // Übersichtskarte unten rechts: 7-facher Ausschnitt, Kartenrahmen rot
+  const oX = MAP_PX_W - 4 * u - ovPxW, oY = MAP_PX_H - 4 * u - ovPxH;
+  g.fillStyle = '#fff'; g.fillRect(oX, oY, ovPxW, ovPxH);
+  if (ovBg) drawDesaturated(g, ovBg, oX, oY, ovPxW, ovPxH, BG_SAT);
+  const opx = ([e, n]) => [oX + (e - ob[0]) / (ob[2] - ob[0]) * ovPxW, oY + (ob[3] - n) / (ob[3] - ob[1]) * ovPxH];
+  const [ra, rb] = opx([bbox[0], bbox[3]]), [rc, rd] = opx([bbox[2], bbox[1]]);
+  g.fillStyle = 'rgba(220,0,0,.12)'; g.fillRect(ra, rb, rc - ra, rd - rb);
+  g.strokeStyle = '#d00'; g.lineWidth = 2.4; g.strokeRect(ra, rb, rc - ra, rd - rb);
+  const [px0, py0] = opx([pos.E, pos.N]); g.beginPath(); g.arc(px0, py0, 3, 0, Math.PI * 2); g.fillStyle = '#d00'; g.fill();
+  g.strokeStyle = '#333'; g.lineWidth = 0.3 * u; g.strokeRect(oX, oY, ovPxW, ovPxH);
 
   if (!okOverlays.length) {
-    g.fillStyle = 'rgba(161,92,0,0.9)'; g.fillRect(0, 90, MAP_PX_W, 44);
-    g.fillStyle = '#fff'; g.font = 'bold 22px Arial, Helvetica, sans-serif';
-    g.fillText('Themenebene konnte nicht geladen werden – nur Hintergrund und Standort dargestellt', 18, 120);
+    g.font = `bold ${Math.round(9 * 0.3528 * u)}px Arial, Helvetica, sans-serif`; g.textAlign = 'center';
+    const t = 'Themenebene konnte nicht geladen werden (Dienst/Layername prüfen)';
+    const tw = g.measureText(t).width + 4 * u;
+    g.fillStyle = 'rgba(255,243,224,0.95)'; g.fillRect(cx - tw / 2, 14 * u, tw, 8 * u);
+    g.fillStyle = '#a15c00'; g.fillText(t, cx, 19.5 * u); g.textAlign = 'left';
   }
+  g.textAlign = 'left';
 
   let data;
-  try { data = c.toDataURL('image/jpeg', 0.82); }
+  try { data = c.toDataURL('image/jpeg', 0.85); }
   catch { throw new Error('Der Kartenserver erlaubt keine Übernahme ins Bild (CORS). Anderen Layer wählen.'); }
   return { data, bbox, problems, layerOk: okOverlays.length > 0, bgOk: !!bgImg };
 }
@@ -331,6 +366,7 @@ const GIS = {
         E: pos.E, N: pos.N, acc: pos.acc, source: pos.source, time: pos.time,
         hits: hits.items, hitsStatus: layer.identify ? hits.status : 'na',
         legend, layerOk: map.layerOk, remark: '',
+        sources: layer.src.map(x => `${new URL(x.url).host}${new URL(x.url).pathname.replace(/\/$/, '')} · ${x.layers}`),
       };
       if (map.problems.length) this.setMsg(ui.msg, 'Nicht alles geladen: ' + map.problems.join(' · '), true);
       this.renderPreview(f, ui);

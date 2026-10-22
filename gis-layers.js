@@ -1,84 +1,9 @@
 'use strict';
-/* Layerliste übernommen aus «GIS Umweltübersicht» (Konfigurationsstand _v 11, 20.10.2026).
+/* Layerliste aus «GIS Umweltübersicht» (Konfigurationsstand _v 14), reduziert auf die Schutzgüter der Begehung:
+   ohne Lärm, Luft, NIS und Naturgefahren (inkl. kantonale Prüfperimeter Bodenverschiebungen).
    GIS_NATIONAL: Bund (geo.admin.ch) und harmonisierte kantonale Daten (geodienste.ch), gültig für alle Kantone.
-   GIS_CANTONAL: kantonale Dienste je Kanton. Bei Änderungen in der GIS Umweltübersicht hier nachführen. */
+   GIS_CANTONAL: kantonale Dienste je Kanton. */
 const GIS_NATIONAL = [
- {
-  "group": "Lärm, Luft, NIS",
-  "label": "Lärmempfindlichkeitsstufen (in Nutzungszonen)",
-  "src": [
-   {
-    "url": "https://geodienste.ch/db/npl_laermempfindlichkeitsstufen_v1_2_0/deu",
-    "layers": "daten"
-   }
-  ],
-  "by": "geodienste.ch",
-  "id": "gd_les"
- },
- {
-  "group": "Lärm, Luft, NIS",
-  "label": "Strassenverkehrslärm Tag (Lr)",
-  "src": [
-   {
-    "url": "https://wms.geo.admin.ch/",
-    "layers": "ch.bafu.laerm-strassenlaerm_tag"
-   }
-  ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
-  "identify": "ch.bafu.laerm-strassenlaerm_tag",
-  "id": "b_strl"
- },
- {
-  "group": "Lärm, Luft, NIS",
-  "label": "Eisenbahnlärm Tag (Lr)",
-  "src": [
-   {
-    "url": "https://wms.geo.admin.ch/",
-    "layers": "ch.bafu.laerm-bahnlaerm_tag"
-   }
-  ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
-  "identify": "ch.bafu.laerm-bahnlaerm_tag",
-  "id": "b_bahnl"
- },
- {
-  "group": "Lärm, Luft, NIS",
-  "label": "Stickstoffdioxid NO₂ (Jahresmittel)",
-  "src": [
-   {
-    "url": "https://wms.geo.admin.ch/",
-    "layers": "ch.bafu.luftreinhaltung-stickstoffdioxid"
-   }
-  ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
-  "identify": "ch.bafu.luftreinhaltung-stickstoffdioxid",
-  "id": "b_no2"
- },
- {
-  "group": "Lärm, Luft, NIS",
-  "label": "Elektrische Anlagen über 36 kV (Leitungen, Masten, Unterwerke)",
-  "src": [
-   {
-    "url": "https://geodienste.ch/db/elektrische_anlagen_ueber_36kv_v1_0_0/deu",
-    "layers": "elektrische_anlagen_ueber_36kv"
-   }
-  ],
-  "by": "geodienste.ch",
-  "id": "gd_elek"
- },
- {
-  "group": "Lärm, Luft, NIS",
-  "label": "Mobilfunkanlagen",
-  "src": [
-   {
-    "url": "https://wms.geo.admin.ch/",
-    "layers": "ch.bakom.standorte-mobilfunkanlagen"
-   }
-  ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
-  "identify": "ch.bakom.standorte-mobilfunkanlagen",
-  "id": "b_mobil"
- },
  {
   "group": "Grundwasser, Gewässer",
   "label": "Planerischer Gewässerschutz (Gewässerschutzbereiche, Grundwasserschutzzonen/-areale, Zuströmbereiche)",
@@ -128,7 +53,7 @@ const GIS_NATIONAL = [
     "layers": "ch.bafu.oekomorphologie-f_abschnitte,ch.bafu.oekomorphologie-f_abstuerze,ch.bafu.oekomorphologie-f_bauwerke"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bafu.oekomorphologie-f_abschnitte,ch.bafu.oekomorphologie-f_abstuerze,ch.bafu.oekomorphologie-f_bauwerke",
   "id": "b_oeko"
  },
@@ -158,20 +83,28 @@ const GIS_NATIONAL = [
  },
  {
   "group": "Boden, Altlasten, Störfall",
-  "label": "Kataster der belasteten Standorte (Kantone + öV, Militär, zivile Flugplätze)",
+  "label": "Kataster der belasteten Standorte (Kantone)",
   "src": [
    {
     "url": "https://geodienste.ch/db/kataster_belasteter_standorte/deu",
     "layers": "daten"
-   },
+   }
+  ],
+  "by": "geodienste.ch",
+  "id": "gd_kbs"
+ },
+ {
+  "group": "Boden, Altlasten, Störfall",
+  "label": "Kataster der belasteten Standorte des Bundes (öV, Militär, zivile Flugplätze)",
+  "src": [
    {
     "url": "https://wms.geo.admin.ch/",
     "layers": "ch.bav.kataster-belasteter-standorte-oev,ch.vbs.kataster-belasteter-standorte-militaer,ch.bazl.kataster-belasteter-standorte-zivilflugplaetze"
    }
   ],
-  "by": "geodienste.ch",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bav.kataster-belasteter-standorte-oev,ch.vbs.kataster-belasteter-standorte-militaer,ch.bazl.kataster-belasteter-standorte-zivilflugplaetze",
-  "id": "gd_kbs"
+  "id": "b_kbs"
  },
  {
   "group": "Boden, Altlasten, Störfall",
@@ -182,7 +115,7 @@ const GIS_NATIONAL = [
     "layers": "ch.astra.konsultationsbereiche-nationalstrassen,ch.bfe.rohrleitungen-konsultationsbereiche,ch.bav.lage-stoerfallverordnung_eisenbahnanlagen"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.astra.konsultationsbereiche-nationalstrassen,ch.bfe.rohrleitungen-konsultationsbereiche,ch.bav.lage-stoerfallverordnung_eisenbahnanlagen",
   "id": "b_stfv"
  },
@@ -241,91 +174,6 @@ const GIS_NATIONAL = [
   "identify": "ch.swisstopo.swisstlm3d-wald"
  },
  {
-  "group": "Naturgefahren",
-  "label": "Synoptische Gefahrenkarte: höchste Gefahrenstufe aller Prozesse",
-  "src": [
-   {
-    "url": "https://geodienste.ch/db/gefahrenkarten_v1_3_0/deu",
-    "layers": "synoptisches_gefahrenhinweisgebiet,synoptisches_gefahrengebiet"
-   }
-  ],
-  "by": "geodienste.ch",
-  "id": "gd_gef"
- },
- {
-  "group": "Naturgefahren",
-  "label": "Gefahrenkarte Wasser (Hochwasser, Murgang, Ufererosion)",
-  "src": [
-   {
-    "url": "https://geodienste.ch/db/gefahrenkarten_v1_3_0/deu",
-    "layers": "gefahrenhinweisgebiet_wasser,gefahrengebiet_wasser"
-   }
-  ],
-  "by": "geodienste.ch",
-  "id": "gd_gefw"
- },
- {
-  "group": "Naturgefahren",
-  "label": "Gefahrenkarte Rutschung",
-  "src": [
-   {
-    "url": "https://geodienste.ch/db/gefahrenkarten_v1_3_0/deu",
-    "layers": "gefahrenhinweisgebiet_rutschung,gefahrengebiet_ruschtung"
-   }
-  ],
-  "by": "geodienste.ch",
-  "id": "gd_gefr"
- },
- {
-  "group": "Naturgefahren",
-  "label": "Gefahrenkarte Sturz (Stein-/Blockschlag, Fels-/Bergsturz)",
-  "src": [
-   {
-    "url": "https://geodienste.ch/db/gefahrenkarten_v1_3_0/deu",
-    "layers": "gefahrenhinweisgebiet_sturz,gefahrengebiet_sturz"
-   }
-  ],
-  "by": "geodienste.ch",
-  "id": "gd_gefs"
- },
- {
-  "group": "Naturgefahren",
-  "label": "Gefahrenkarte Lawine",
-  "src": [
-   {
-    "url": "https://geodienste.ch/db/gefahrenkarten_v1_3_0/deu",
-    "layers": "gefahrenhinweisgebiet_lawine,gefahrengebiet_lawine"
-   }
-  ],
-  "by": "geodienste.ch",
-  "id": "gd_gefl"
- },
- {
-  "group": "Naturgefahren",
-  "label": "Gefährdungskarte Oberflächenabfluss",
-  "src": [
-   {
-    "url": "https://wms.geo.admin.ch/",
-    "layers": "ch.bafu.gefaehrdungskarte-oberflaechenabfluss"
-   }
-  ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
-  "identify": "ch.bafu.gefaehrdungskarte-oberflaechenabfluss",
-  "id": "b_oberf"
- },
- {
-  "group": "Naturgefahren",
-  "label": "Naturereigniskataster (vergangene Ereignisse)",
-  "src": [
-   {
-    "url": "https://geodienste.ch/db/naturereigniskataster_v1_0_0/deu",
-    "layers": "daten"
-   }
-  ],
-  "by": "geodienste.ch",
-  "id": "gd_nek"
- },
- {
   "group": "Flora, Fauna, Lebensräume",
   "label": "Auengebiete",
   "src": [
@@ -334,7 +182,7 @@ const GIS_NATIONAL = [
     "layers": "ch.bafu.bundesinventare-auen"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bafu.bundesinventare-auen",
   "id": "b_auen"
  },
@@ -347,7 +195,7 @@ const GIS_NATIONAL = [
     "layers": "ch.bafu.bundesinventare-moorlandschaften,ch.bafu.bundesinventare-flachmoore,ch.bafu.bundesinventare-hochmoore"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bafu.bundesinventare-moorlandschaften,ch.bafu.bundesinventare-flachmoore,ch.bafu.bundesinventare-hochmoore",
   "id": "b_moore"
  },
@@ -360,7 +208,7 @@ const GIS_NATIONAL = [
     "layers": "ch.bafu.bundesinventare-amphibien,ch.bafu.bundesinventare-amphibien_wanderobjekte"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bafu.bundesinventare-amphibien,ch.bafu.bundesinventare-amphibien_wanderobjekte",
   "id": "b_amph"
  },
@@ -373,7 +221,7 @@ const GIS_NATIONAL = [
     "layers": "ch.bafu.bundesinventare-trockenwiesen_trockenweiden"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bafu.bundesinventare-trockenwiesen_trockenweiden",
   "id": "b_tww"
  },
@@ -386,7 +234,7 @@ const GIS_NATIONAL = [
     "layers": "ch.bafu.bundesinventare-jagdbanngebiete,ch.bafu.bundesinventare-vogelreservate"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bafu.bundesinventare-jagdbanngebiete,ch.bafu.bundesinventare-vogelreservate",
   "id": "b_jagd"
  },
@@ -399,7 +247,7 @@ const GIS_NATIONAL = [
     "layers": "ch.bafu.schutzgebiete-smaragd"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bafu.schutzgebiete-smaragd",
   "id": "b_smar"
  },
@@ -412,7 +260,7 @@ const GIS_NATIONAL = [
     "layers": "ch.bafu.fauna-vernetzungsachsen_national,ch.bafu.fauna-wildtierkorridor_national,ch.bafu.fauna-wildtierpassagen"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bafu.fauna-vernetzungsachsen_national,ch.bafu.fauna-wildtierkorridor_national,ch.bafu.fauna-wildtierpassagen",
   "id": "b_wtk"
  },
@@ -437,7 +285,7 @@ const GIS_NATIONAL = [
     "layers": "ch.bafu.amphibienwanderung-verkehrskonflikte"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bafu.amphibienwanderung-verkehrskonflikte",
   "id": "b_amphk"
  },
@@ -450,7 +298,7 @@ const GIS_NATIONAL = [
     "layers": "ch.pronatura.naturschutzgebiete"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.pronatura.naturschutzgebiete",
   "id": "b_prona"
  },
@@ -475,7 +323,7 @@ const GIS_NATIONAL = [
     "layers": "ch.bafu.bundesinventare-bln"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bafu.bundesinventare-bln",
   "id": "b_bln"
  },
@@ -488,7 +336,7 @@ const GIS_NATIONAL = [
     "layers": "ch.bafu.schutzgebiete-paerke_nationaler_bedeutung"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bafu.schutzgebiete-paerke_nationaler_bedeutung",
   "id": "b_park"
  },
@@ -525,7 +373,7 @@ const GIS_NATIONAL = [
     "layers": "ch.bak.bundesinventar-schuetzenswerte-ortsbilder"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.bak.bundesinventar-schuetzenswerte-ortsbilder",
   "id": "b_isos"
  },
@@ -538,7 +386,7 @@ const GIS_NATIONAL = [
     "layers": "ch.astra.ivs-reg_loc,ch.astra.ivs-nat"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.astra.ivs-reg_loc,ch.astra.ivs-nat",
   "id": "b_ivs"
  },
@@ -551,7 +399,7 @@ const GIS_NATIONAL = [
     "layers": "ch.babs.kulturgueter"
    }
   ],
-  "by": "BAFU / swisstopo (geo.admin.ch)",
+  "by": "Bund (geo.admin.ch)",
   "identify": "ch.babs.kulturgueter",
   "id": "b_kgs"
  }
@@ -632,18 +480,6 @@ const GIS_CANTONAL = {
    "id": "zh_5"
   },
   {
-   "group": "Prüfperimeter Bodenverschiebungen",
-   "label": "Prüfperimeter für Bodenverschiebungen (PBV)",
-   "src": [
-    {
-     "url": "https://wms.zh.ch/FaBoPBV2ZHWMS",
-     "layers": "pruefperimeter-fuer-bodenverschiebungen-pbv"
-    }
-   ],
-   "by": "Kanton ZH",
-   "id": "zh_6"
-  },
-  {
    "group": "Sonstige geschützte Inventare",
    "label": "Denkmalschutzobjekte (überkommunal, Inventar)",
    "src": [
@@ -694,18 +530,6 @@ const GIS_CANTONAL = {
    "id": "be_2"
   },
   {
-   "group": "Prüfperimeter Bodenverschiebungen",
-   "label": "Hinweise auf anthropogene Böden (Grundlage Bodenverschiebungen)",
-   "src": [
-    {
-     "url": "https://www.geoservice.apps.be.ch/geoservice3/services/a42geo/of_geoscientificinformation03_de_ms_wms/MapServer/WMSServer",
-     "layers": "BODANTHR_BODANTHR_VW_14068"
-    }
-   ],
-   "by": "Kanton BE",
-   "id": "be_3"
-  },
-  {
    "group": "Sonstige geschützte Inventare",
    "label": "Kantonal geschützte botanische und geologische Objekte",
    "src": [
@@ -752,18 +576,6 @@ const GIS_CANTONAL = {
    ],
    "by": "Kanton BE",
    "id": "be_7"
-  },
-  {
-   "group": "Prüfperimeter Bodenverschiebungen",
-   "label": "Bodenhinweiskarte (Altbaugebiete, Verkehr, Ablagerungen, Schiessanlagen, Spezialkulturen, Gärten, Korrosionsschutz)",
-   "src": [
-    {
-     "url": "https://www.geoservice.apps.be.ch/geoservice3/services/a42geo/of_geoscientificinformation05_de_ms_wms/MapServer/WMSServer",
-     "layers": "BOHIKA_ALTBAU_VW_42652,BOHIKA_VERKEHR_VW_42651,BOHIKA_ABLASTAO_VW_42653,BOHIKA_SCHIESS_VW_42649,BOHIKA_SPEZKULT_VW_42648,BOHIKA_GARTEN_VW_42647,BOHIKA_KORROBJ_VW_42646"
-    }
-   ],
-   "by": "Kanton BE",
-   "id": "be_8"
   },
   {
    "group": "Sonstige geschützte Inventare",
@@ -826,18 +638,6 @@ const GIS_CANTONAL = {
    ],
    "by": "Kanton LU",
    "id": "lu_2"
-  },
-  {
-   "group": "Prüfperimeter Bodenverschiebungen",
-   "label": "Prüfperimeter Bodenverschiebung",
-   "src": [
-    {
-     "url": "https://public.geo.lu.ch/ogd/services/managed/PBVXXXXX_DS_V3_MP/MapServer/WMSServer",
-     "layers": "0"
-    }
-   ],
-   "by": "Kanton LU",
-   "id": "lu_3"
   },
   {
    "group": "Neophyten (Fundmeldungen)",
@@ -962,18 +762,6 @@ const GIS_CANTONAL = {
    "id": "ur_4"
   },
   {
-   "group": "Prüfperimeter Bodenverschiebungen",
-   "label": "Flächen mit vermuteten Bodenbelastungen",
-   "src": [
-    {
-     "url": "https://geo.ur.ch/wms",
-     "layers": "umwelt:fvbb"
-    }
-   ],
-   "by": "Kanton UR",
-   "id": "ur_5"
-  },
-  {
    "group": "Neophyten (Fundmeldungen)",
    "label": "Neophyten",
    "src": [
@@ -1046,18 +834,6 @@ const GIS_CANTONAL = {
    ],
    "by": "Kanton SZ",
    "id": "sz_4"
-  },
-  {
-   "group": "Prüfperimeter Bodenverschiebungen",
-   "label": "Prüfperimeter für Bodenverschiebung",
-   "src": [
-    {
-     "url": "https://map.geo.sz.ch/mapserv_proxy",
-     "layers": "ch.sz.a211a.pruefperimeter_bodenverschiebung.gartenanlagen_kulturen,ch.sz.a211a.pruefperimeter_bodenverschiebung.schiessanlagen,ch.sz.a211a.pruefperimeter_bodenverschiebung.korrosionsschutzobjekte,ch.sz.a211a.pruefperimeter_bodenverschiebung.verkehrstraeger,ch.sz.a211a.pruefperimeter_bodenverschiebung.altbau_gewerbe_industrie,ch.sz.a211a.pruefperimeter_bodenverschiebung.flaechen_diverse_hinweise,ch.sz.a211a.pruefperimeter_bodenverschiebung.standorte_diverse_hinweise"
-    }
-   ],
-   "by": "Kanton SZ",
-   "id": "sz_5"
   }
  ],
  "OW": [
@@ -1150,18 +926,6 @@ const GIS_CANTONAL = {
  ],
  "GL": [
   {
-   "group": "Wald (Waldareal)",
-   "label": "Waldbestand",
-   "src": [
-    {
-     "url": "https://wms.geo.gl.ch/",
-     "layers": "ch.gl.biota.waldbestand"
-    }
-   ],
-   "by": "Kanton GL",
-   "id": "gl_0"
-  },
-  {
    "group": "Archäologie",
    "label": "Archäologische Zonen",
    "src": [
@@ -1171,7 +935,7 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton GL",
-   "id": "gl_1"
+   "id": "gl_0"
   },
   {
    "group": "Naturschutz-Inventare kantonal",
@@ -1183,7 +947,7 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton GL",
-   "id": "gl_2"
+   "id": "gl_1"
   },
   {
    "group": "Landschaftsschutzobjekte",
@@ -1195,7 +959,7 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton GL",
-   "id": "gl_3"
+   "id": "gl_2"
   },
   {
    "group": "Sonstige geschützte Inventare",
@@ -1207,7 +971,7 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton GL",
-   "id": "gl_4"
+   "id": "gl_3"
   }
  ],
  "ZG": [
@@ -1222,18 +986,6 @@ const GIS_CANTONAL = {
    ],
    "by": "Kanton ZG",
    "id": "zg_1"
-  },
-  {
-   "group": "Prüfperimeter Bodenverschiebungen",
-   "label": "Prüfperimeter Bodenverschiebung",
-   "src": [
-    {
-     "url": "https://services.geo.zg.ch/ows/pbv",
-     "layers": "zg.pruefperimeter_bodenverschiebung"
-    }
-   ],
-   "by": "Kanton ZG",
-   "id": "zg_0"
   },
   {
    "group": "Archäologie",
@@ -1480,18 +1232,6 @@ const GIS_CANTONAL = {
    "id": "so_2"
   },
   {
-   "group": "Prüfperimeter Bodenverschiebungen",
-   "label": "Prüfperimeter Bodenabtrag",
-   "src": [
-    {
-     "url": "https://geo.so.ch/api/wms",
-     "layers": "ch.so.afu.schadstoffbelastete_boeden"
-    }
-   ],
-   "by": "Kanton SO",
-   "id": "so_3"
-  },
-  {
    "group": "Sonstige geschützte Inventare",
    "label": "Denkmalschutz, Geotope, Ortsbildschutz",
    "src": [
@@ -1652,18 +1392,6 @@ const GIS_CANTONAL = {
    "id": "bl_1"
   },
   {
-   "group": "Prüfperimeter Bodenverschiebungen",
-   "label": "Verdachtsflächen Bodenbelastung (Siedlung bis 1960, Verkehr, Schiessanlagen, Korrosionsschutz, geogen)",
-   "src": [
-    {
-     "url": "https://geowms.bl.ch/",
-     "layers": "boden_verdachtsflaechen_siedlung_bis_1960,boden_verdachtsflaechen_strasse,boden_verdachtsflaechen_bahn,boden_verdachtsflaechen_tram,boden_verdachtsflaechen_schiessanlage,boden_verdachtsflaechen_korrosion_objekte,boden_verdachtsflaechen_geogen"
-    }
-   ],
-   "by": "Kanton BL",
-   "id": "bl_2"
-  },
-  {
    "group": "Archäologie",
    "label": "Archäologische Schutzzonen",
    "src": [
@@ -1800,18 +1528,6 @@ const GIS_CANTONAL = {
  ],
  "AR": [
   {
-   "group": "Wald (Waldareal)",
-   "label": "Bestandeskarte 2024 (Waldbestand)",
-   "src": [
-    {
-     "url": "https://www.geoportal.ch/services/wms/ktar",
-     "layers": "ch.geoportal.wald_flora_fauna.3516.0.bestandeskarte_2024_kt_arai"
-    }
-   ],
-   "by": "Kanton AR",
-   "id": "ar_0"
-  },
-  {
    "group": "Naturschutz-Inventare kantonal",
    "label": "Naturinventar der Gemeinden, Waldreservate",
    "src": [
@@ -1821,7 +1537,7 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton AR",
-   "id": "ar_1"
+   "id": "ar_0"
   },
   {
    "group": "Landschaftsschutzobjekte",
@@ -1833,7 +1549,7 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton AR",
-   "id": "ar_2"
+   "id": "ar_1"
   },
   {
    "group": "Sonstige geschützte Inventare",
@@ -1845,7 +1561,7 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton AR",
-   "id": "ar_3"
+   "id": "ar_2"
   },
   {
    "group": "Neophyten (Fundmeldungen)",
@@ -1857,22 +1573,10 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton AR",
-   "id": "ar_4"
+   "id": "ar_3"
   }
  ],
  "AI": [
-  {
-   "group": "Wald (Waldareal)",
-   "label": "Bestandeskarte 2024 (Waldbestand)",
-   "src": [
-    {
-     "url": "https://www.geoportal.ch/services/wms/ktai",
-     "layers": "ch.geoportal.wald_flora_fauna.3516.0.bestandeskarte_2024_kt_arai"
-    }
-   ],
-   "by": "Kanton AI",
-   "id": "ai_0"
-  },
   {
    "group": "Naturschutz-Inventare kantonal",
    "label": "Naturschutzflächen, Pflanzenschutzgebiete, Naturinventar der Gemeinden, Waldreservate",
@@ -1883,7 +1587,7 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton AI",
-   "id": "ai_1"
+   "id": "ai_0"
   },
   {
    "group": "Landschaftsschutzobjekte",
@@ -1895,7 +1599,7 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton AI",
-   "id": "ai_2"
+   "id": "ai_1"
   },
   {
    "group": "Sonstige geschützte Inventare",
@@ -1907,7 +1611,7 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton AI",
-   "id": "ai_3"
+   "id": "ai_2"
   },
   {
    "group": "Neophyten (Fundmeldungen)",
@@ -1919,7 +1623,7 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton AI",
-   "id": "ai_4"
+   "id": "ai_3"
   }
  ],
  "SG": [
@@ -2008,16 +1712,40 @@ const GIS_CANTONAL = {
    "id": "sg_6"
   },
   {
-   "group": "Prüfperimeter Bodenverschiebungen",
-   "label": "Prüfgebiete Bodenverschiebung",
+   "group": "Naturschutz-Inventare kantonal",
+   "label": "Schutzverordnung: geschützter Wald, Einzelbäume, Baumgruppen, Gehölze",
    "src": [
     {
-     "url": "https://services.geo.sg.ch/wss/service/SG00082_WMS/guest",
-     "layers": "Pruefgebiete_Bodenverschiebung_F"
+     "url": "https://services.geo.sg.ch/wss/service/SG00033_WMS/guest",
+     "layers": "SV_Geschuetzter_Wald_F,SV_Geschuetzter_Wald_L,SV_Einzelbaum_Baumgruppe_Gehoelz_F,SV_Einzelbaum_Baumgruppe_Gehoelz_L,SV_Einzelbaum_Baumgruppe_Gehoelz_P"
     }
    ],
    "by": "Kanton SG",
-   "id": "sg_7"
+   "id": "sg_8"
+  },
+  {
+   "group": "Naturschutz-Inventare kantonal",
+   "label": "Waldreservate mit Vertrag",
+   "src": [
+    {
+     "url": "https://services.geo.sg.ch/wss/service/SG00069_WMS/guest",
+     "layers": "Waldreservatsperimeter"
+    }
+   ],
+   "by": "Kanton SG",
+   "id": "sg_9"
+  },
+  {
+   "group": "Sonstige geschützte Inventare",
+   "label": "Geotopinventar",
+   "src": [
+    {
+     "url": "https://services.geo.sg.ch/wss/service/SG00012_WMS/guest",
+     "layers": "Geotop"
+    }
+   ],
+   "by": "Kanton SG",
+   "id": "sg_10"
   },
   {
    "group": "Sonstige geschützte Inventare",
@@ -2029,7 +1757,7 @@ const GIS_CANTONAL = {
     }
    ],
    "by": "Kanton SG",
-   "id": "sg_8"
+   "id": "sg_11"
   }
  ],
  "GR": [
@@ -2240,18 +1968,6 @@ const GIS_CANTONAL = {
    "id": "ag_11"
   },
   {
-   "group": "Prüfperimeter Bodenverschiebungen",
-   "label": "Prüfperimeter Bodenaushub",
-   "src": [
-    {
-     "url": "https://wms.geo.ag.ch/public/ch_ag_geo_afu_ppba/wms",
-     "layers": "ch_ag_geo_afu_ppba"
-    }
-   ],
-   "by": "Kanton AG",
-   "id": "ag_12"
-  },
-  {
    "group": "Archäologie",
    "label": "Archäologische Fundstellen",
    "src": [
@@ -2388,18 +2104,6 @@ const GIS_CANTONAL = {
    ],
    "by": "Kanton VS",
    "id": "vs_1"
-  },
-  {
-   "group": "Prüfperimeter Bodenverschiebungen",
-   "label": "Gebiete mit nachgewiesenen Bodenbelastungen",
-   "src": [
-    {
-     "url": "https://sit.vs.ch/arcgis/services/UMWELTSCHUTZ/MapServer/WMSServer",
-     "layers": "26"
-    }
-   ],
-   "by": "Kanton VS",
-   "id": "vs_2"
   },
   {
    "group": "Landschaftsschutzobjekte",

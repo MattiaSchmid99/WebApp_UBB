@@ -206,6 +206,23 @@ dialog ul { margin: 0 0 14px; padding-left: 20px; }
 dialog textarea, dialog input[type=text], dialog input[type=date] { margin-bottom: 12px; }
 #mgRef { font-size: 13px; color: var(--muted); margin: -2px 0 12px; }
 #mgPhotos { margin-bottom: 14px; }
+
+/* Version 9: Kamera in der App, CSV-Export */
+dialog.cam { width: 100vw; height: 100dvh; max-width: none; max-height: none; margin: 0; padding: 0; border: 0; background: #000; color: #fff; }
+dialog.cam[open] { display: flex; flex-direction: column; }
+.cam video { flex: 1; min-height: 0; width: 100%; object-fit: contain; background: #000; }
+.cam .cambar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px calc(14px + env(safe-area-inset-bottom)); background: #000; }
+.cam .cambar .btn { background: #000; color: #fff; border-color: #fff; min-width: 96px; }
+.cam .shutter { width: 74px; height: 74px; border-radius: 50%; border: 5px solid #fff; background: #fff; box-shadow: inset 0 0 0 3px #000; cursor: pointer; flex: none; }
+.cam .shutter:active { transform: scale(.94); }
+.cam .camtop { display: flex; justify-content: space-between; align-items: center; padding: calc(10px + env(safe-area-inset-top)) 16px 10px; font-size: 14px; }
+.cam .flash { position: fixed; inset: 0; background: #fff; opacity: 0; pointer-events: none; transition: opacity .15s; }
+.cam .flash.on { opacity: .8; transition: none; }
+.cam .thumb { width: 54px; height: 54px; object-fit: cover; border: 2px solid #fff; display: none; }
+.cam .camerr { padding: 20px; font-size: 15px; }
+.bar .btn { padding: 12px 11px; font-size: 15px; }
+dialog .opt { border: 1px solid var(--line); padding: 12px; margin-bottom: 10px; }
+dialog .opt p { margin: 6px 0 0; font-size: 13px; }
 </style>
 </head>
 <body>
@@ -221,6 +238,7 @@ dialog textarea, dialog input[type=text], dialog input[type=date] { margin-botto
 <div class="bar">
   <button class="btn" id="btnNew" type="button">Neu</button>
   <button class="btn" id="btnPresets" type="button">Presets</button>
+  <button class="btn" id="btnCsv" type="button">CSV</button>
   <button class="btn primary" id="btnPdf" type="button">PDF erstellen</button>
 </div>
 
@@ -307,13 +325,51 @@ dialog textarea, dialog input[type=text], dialog input[type=date] { margin-botto
   </div>
 </dialog>
 
+<dialog id="dlgCam" class="cam">
+  <div class="camtop"><span id="camInfo">Kamera</span><span id="camCount"></span></div>
+  <video id="camVideo" playsinline autoplay muted></video>
+  <div class="camerr" id="camErr" hidden></div>
+  <div class="cambar">
+    <button class="btn" id="camClose" type="button">Abbrechen</button>
+    <button class="shutter" id="camShot" type="button" aria-label="Foto aufnehmen"></button>
+    <button class="btn" id="camDone" type="button">Fertig</button>
+  </div>
+  <div class="flash" id="camFlash"></div>
+</dialog>
+
+<dialog id="dlgCsv">
+  <h2>Daten als CSV exportieren</h2>
+  <p>Eine Zeile pro Begehung, eine Spalte pro Feld. So lassen sich alle Begehungen eines Projekts in Excel zusammenführen.</p>
+  <div class="opt">
+    <button class="btn primary" id="csvNew" type="button" style="width:100%;max-width:none">Neue CSV-Datei erstellen</button>
+    <p>Für die erste Begehung eines Projekts.</p>
+  </div>
+  <div class="opt">
+    <label class="btn filebtn">Bestehende CSV-Datei ergänzen<input type="file" id="csvAppend" accept=".csv,text/csv,text/plain,application/vnd.ms-excel"></label>
+    <p>Sammel-CSV aus OneDrive wählen. Die Begehung wird als neue Zeile angehängt; ist sie schon enthalten, wird ihre Zeile ersetzt. Danach die Datei unter dem gleichen Namen wieder in OneDrive speichern.</p>
+  </div>
+  <div class="stack"><button class="btn" id="csvCancel" type="button">Abbrechen</button></div>
+</dialog>
+
+<dialog id="dlgCsvDone">
+  <h2>CSV bereit</h2>
+  <p id="csvInfo"></p>
+  <div class="fname" id="csvName"></div>
+  <div class="stack">
+    <button class="btn primary" id="csvShare" type="button">In OneDrive speichern / Teilen</button>
+    <button class="btn" id="csvDownload" type="button">Herunterladen</button>
+    <button class="btn" id="csvClose" type="button">Schliessen</button>
+  </div>
+</dialog>
+
 <div class="toast" id="toast"></div>
 
-<script src="jspdf.umd.min.js?v=8"></script>
-<script src="schema.js?v=8"></script>
-<script src="gis-layers.js?v=8"></script>
-<script src="gis.js?v=8"></script>
-<script src="features.js?v=8"></script>
-<script src="app.js?v=8"></script>
+<script src="jspdf.umd.min.js?v=9"></script>
+<script src="schema.js?v=9"></script>
+<script src="gis-layers.js?v=9"></script>
+<script src="gis.js?v=9"></script>
+<script src="features.js?v=9"></script>
+<script src="export.js?v=9"></script>
+<script src="app.js?v=9"></script>
 </body>
 </html>

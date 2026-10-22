@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '8'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
+const APP_VERSION = '9'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
 
 /* ---------- Speicher (IndexedDB, Fallback: nur im Arbeitsspeicher) ---------- */
 const DB = (() => {
@@ -55,7 +55,7 @@ function freshState(keep) {
       if (state.values[f.id + '_andere'] != null) values[f.id + '_andere'] = state.values[f.id + '_andere'];
     }
   }
-  return { values, photos: {}, gis: {}, maengel: [], nrel: {} };
+  return { id: uid(), values, photos: {}, gis: {}, maengel: [], nrel: {} };
 }
 // Auflagen für ein neues Protokoll: Text und Herkunft übernehmen, Status/Bemerkung leeren
 const resetAuflagen = arr => (Array.isArray(arr) ? arr : []).filter(a => a && String(a.text || '').trim())
@@ -141,10 +141,11 @@ function afterChange() {
   }
   for (const s of SCHEMA) {
     const n = s.fields.filter(f => isVisible(f) && isFilled(f)).length;
-    const mc = state.maengel.filter(m => m.section === s.id).length;
+    const mc = s.id === 'maengel' ? state.maengel.length : state.maengel.filter(m => m.section === s.id).length;
     const nr = !!state.nrel[s.id];
     const b = document.getElementById('b_' + s.id);
-    b.textContent = nr ? 'n. rel.' : (n ? `${n} ausgefüllt` : 'leer') + (mc ? ` · ${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}` : '');
+    b.textContent = s.id === 'maengel' ? (mc ? `${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}` : 'keine')
+      : nr ? 'n. rel.' : (n ? `${n} ausgefüllt` : 'leer') + (mc ? ` · ${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}` : '');
     b.classList.toggle('on', n > 0 || nr);
     b.classList.toggle('warn', mc > 0 && !nr);
     const sf = document.getElementById('sf_' + s.id);
@@ -188,7 +189,7 @@ function render() {
     const det = el('details', { class: 'sec', id: 's_' + s.id },
       el('summary', {}, el('span', { class: 't' }, s.title), el('span', { class: 'badge', id: 'b_' + s.id }, 'leer')),
       body);
-    if (i === 0) det.open = true;
+    if (s.id === 'allg') det.open = true;
     root.append(det);
   });
   afterChange();
@@ -326,14 +327,19 @@ function renderPhotos(fid) {
 const ICON_CAM = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 8h4l2-3h6l2 3h4v11H3z"/><circle cx="12" cy="13" r="4"/></svg>';
 const ICON_IMG = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16"/><circle cx="9" cy="10" r="2"/><path d="M21 17l-6-6-9 9"/></svg>';
 function photoAddTiles(onFiles) {
-  const mk = (label, icon, attrs) => {
+  const mk = (label, icon, attrs, onTap) => {
     const inp = el('input', { type: 'file', accept: 'image/*', ...attrs, onchange: e => { const fl = [...e.target.files]; e.target.value = ''; if (fl.length) onFiles(fl); } });
     const lab = el('label', { class: 'addph' }, inp);
     lab.insertAdjacentHTML('afterbegin', icon);
     lab.append(el('span', {}, label));
+    // Kamera in der App (Live-Bild); nur wenn nicht verfügbar: Kamera-App des Systems über capture
+    if (onTap) lab.addEventListener('click', e => { if (e.target === inp) return; if (camAvailable()) { e.preventDefault(); onTap(inp); } });
     return lab;
   };
-  return [mk('Kamera', ICON_CAM, { capture: 'environment' }), mk('Aus Galerie', ICON_IMG, { multiple: true })];
+  return [
+    mk('Kamera', ICON_CAM, { capture: 'environment' }, inp => openCamera(onFiles, () => inp.click())),
+    mk('Aus Galerie', ICON_IMG, { multiple: true }),
+  ];
 }
 
 function compressImage(file, max = 1600, q = 0.72) {
@@ -495,44 +501,72 @@ function buildPdf() {
   }
 
   // GIS-Karten: Bild in voller Breite (Massstab stimmt bei Druck 100 %), darunter Angaben und Legende
+  // GIS-Karten als Kartenblatt wie in der «GIS Umweltübersicht»:
+  // Blattkopf (Nr. · Thema | Massstab · Koordinaten · Zeit), Karte 180 mm (Massstab stimmt bei Druck 100 %),
+  // darunter Legende (links) und Standort/Quellen (rechts)
+  let mapNo = 0;
+  const LEG_W = 108, SIDE_X = M + LEG_W + 5, SIDE_W = W - LEG_W - 5;
+  function gisLayout(m) {
+    const mh = W * m.h / m.w;
+    doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+    const hits = GIS.hitsText(m);
+    const side = [
+      ['Standort', [`E ${Math.round(m.E).toLocaleString('de-CH')} / N ${Math.round(m.N).toLocaleString('de-CH')} (LV95)`,
+        m.source === 'GPS' ? `GPS, Genauigkeit +/-${Math.round(m.acc)} m` : 'Koordinaten manuell eingegeben']],
+      hits.length ? ['Am Standort', hits] : null,
+      m.remark ? ['Bemerkung', [m.remark]] : null,
+      !m.layerOk ? ['Hinweis', ['Themenebene konnte nicht geladen werden.']] : null,
+      ['Quellen', [...(m.sources || [m.by || '']), `Daten: ${m.by || '-'}`, `Hintergrund: map.geo.admin.ch (© swisstopo), ${m.bgLabel}`]],
+    ].filter(Boolean).map(([t, ls]) => [t, ls.flatMap(l => doc.splitTextToSize(clean(l), SIDE_W))]);
+    const sideH = side.reduce((h, [, ls]) => h + 4 + ls.length * 3.6 + 1.5, 0) + 9;
+    let lw = 0, lh = 0;
+    if (m.legend) { lw = Math.min(LEG_W, m.legend.w * 0.2646); lh = lw * m.legend.h / m.legend.w; if (lh > 85) { lh = 85; lw = lh * m.legend.w / m.legend.h; } }
+    const belowH = Math.max(sideH, m.legend ? lh + 6 : 8);
+    return { mh, side, lw, lh, belowH, total: 12 + mh + 3 + belowH + 4 };
+  }
   function gisMaps(list) {
     for (const m of list) {
-      const mh = W * m.h / m.w;
-      doc.setFontSize(FS);
-      const info = [
-        `${m.layerLabel}  |  Massstab 1:${Math.round(m.scale).toLocaleString('de-CH')} (A4, Druck 100 %)  |  Hintergrund: ${m.bgLabel}`,
-        `Standort: E ${Math.round(m.E).toLocaleString('de-CH')} / N ${Math.round(m.N).toLocaleString('de-CH')} (LV95)  |  ` +
-          (m.source === 'GPS' ? `GPS, Genauigkeit +/-${Math.round(m.acc)} m` : 'Koordinaten manuell') +
-          `  |  ${new Date(m.time).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}`,
-      ];
-      const hits = GIS.hitsText(m);
-      if (hits.length) info.push('Am Standort: ' + hits.join('; '));
-      if (m.remark) info.push('Bemerkung: ' + m.remark);
-      if (!m.layerOk) info.push('Hinweis: Themenebene konnte nicht geladen werden.');
-      const lines = info.flatMap(t => doc.splitTextToSize(clean(t), W));
-      // Legende in Originalgrösse (96 dpi), begrenzt
-      let lw = 0, lh = 0;
-      if (m.legend) {
-        lw = Math.min(120, m.legend.w * 0.2646); lh = lw * m.legend.h / m.legend.w;
-        if (lh > 90) { lh = 90; lw = lh * m.legend.w / m.legend.h; }
-      }
-      const blockH = mh + 4 + lines.length * LH + 4, legH = m.legend ? lh + 8 : 0;
-      need(blockH + legH <= BOTTOM - TOP ? blockH + legH : blockH);
+      const L = gisLayout(m);
+      need(Math.min(L.total, BOTTOM - TOP));
+      mapNo++;
       y += 3;
-      doc.addImage(m.data, 'JPEG', M, y, W, mh, m.id, 'FAST');
-      doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3); doc.rect(M, y, W, mh, 'S'); doc.setLineWidth(0.2);
-      y += mh + 4.5;
-      doc.setFont('helvetica', 'normal'); doc.setFontSize(FS); doc.setTextColor(...C.ink);
-      doc.text(lines, M, y, { lineHeightFactor: LHF });
-      y += lines.length * LH + 1;
-      if (m.legend) {
-        need(legH);
-        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...C.muted);
-        doc.text('LEGENDE', M, y + 3, { charSpace: 0.2 });
-        doc.addImage(m.legend.data, 'PNG', M, y + 5, lw, lh, m.id + '_leg', 'FAST');
-        y += lh + 8;
+      // Blattkopf
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(...C.ink);
+      const right = clean(`1:${Math.round(m.scale).toLocaleString('de-CH')} · ${new Date(m.time).toLocaleString('de-CH', { dateStyle: 'short', timeStyle: 'short' })}`);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+      const rw = doc.getTextWidth(right);
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(11);
+      const tl = doc.splitTextToSize(clean(`K${mapNo} · ${m.layerLabel}`), W - rw - 6)[0];
+      doc.text(tl, M, y + 5);
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...C.muted);
+      doc.text(right, M + W, y + 5, { align: 'right' });
+      y += 7.5;
+      doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.6); doc.line(M, y, M + W, y); doc.setLineWidth(0.2);
+      y += 1.5;
+      // Karte
+      doc.addImage(m.data, 'JPEG', M, y, W, L.mh, m.id, 'FAST');
+      doc.setDrawColor(153, 153, 153); doc.setLineWidth(0.3); doc.rect(M, y, W, L.mh, 'S'); doc.setLineWidth(0.2);
+      y += L.mh + 3;
+      if (y + L.belowH > BOTTOM) newPage();
+      const y0 = y;
+      // Legende links
+      doc.setFont('helvetica', 'bold'); doc.setFontSize(9); doc.setTextColor(...C.ink);
+      doc.text(clean(m.layerLabel).slice(0, 90), M, y0 + 3.5);
+      if (m.legend) doc.addImage(m.legend.data, 'PNG', M, y0 + 6, L.lw, L.lh, m.id + '_leg', 'FAST');
+      else { doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...C.muted); doc.text('Legende nicht verfügbar', M, y0 + 8); }
+      // Standort und Quellen rechts, mit Trennlinie
+      doc.setDrawColor(...C.line); doc.line(SIDE_X - 2.5, y0, SIDE_X - 2.5, y0 + L.belowH);
+      let ys = y0;
+      for (const [t, ls] of L.side) {
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(8.5); doc.setTextColor(...C.ink);
+        doc.text(t, SIDE_X, ys + 3.2);
+        doc.setFont('helvetica', 'normal'); doc.setTextColor(t === 'Hinweis' ? C.warn[0] : 68, t === 'Hinweis' ? C.warn[1] : 68, t === 'Hinweis' ? C.warn[2] : 68);
+        doc.text(ls, SIDE_X, ys + 7, { lineHeightFactor: 3.6 / (8.5 * 0.3528) });
+        ys += 4 + ls.length * 3.6 + 1.5;
       }
-      y += 3;
+      doc.setFont('helvetica', 'normal'); doc.setFontSize(7.5); doc.setTextColor(...C.muted);
+      doc.text(doc.splitTextToSize('Ohne Rechtsverbindlichkeit - massgebend sind die Originaldaten der Fachstellen.', SIDE_W), SIDE_X, ys + 3);
+      y = y0 + L.belowH + 4;
     }
   }
 
@@ -592,24 +626,24 @@ function buildPdf() {
   const nrelList = SCHEMA.filter(x => state.nrel[x.id]).map(x => x.title);
   const anyContent = SCHEMA.some(sectionHasContent) || nrelList.length || ORD.length;
   if (!anyContent) return null;
+  // Mängel und Massnahmen ganz oben
+  sectionHead('Mängel und Massnahmen');
+  if (ORD.length || openAuflagen.length) {
+    table(MCOLS, [...mangelRows(ORD), ...openAuflagen.map(o => ({
+      cells: [o.nr, `${o.s.title}: Auflage (${o.a.herkunft})`, 'Auflage nicht erfüllt: ' + o.a.text + (o.a.bemerkung ? '\nBemerkung: ' + o.a.bemerkung : ''), '-', '-'],
+      warn: [],
+    }))]);
+  } else row('Mängel', 'Keine Mängel erfasst');
+
   sectionHead('Zusammenfassung');
   const gb = v.gesamt_beurteilung;
   row('Gesamtbeurteilung', gb || '-', gb && gb !== 'In Ordnung');
   if (v.gesamt_eindruck) row('Eindruck der Baustelle', v.gesamt_eindruck);
   if (v.bericht_vorfaelle === 'Ja') row('Umweltvorfall', 'Ja' + (v.vorfall_was ? ': ' + v.vorfall_was.split('\n')[0] : '') + ' (Details unter Berichterstattung)', true);
-  row('Mängel', ORD.length ? `${ORD.length} (siehe Massnahmenliste)` : 'Keine Mängel erfasst', ORD.length > 0);
-  if (openAuflagen.length) row('Auflagen nicht erfüllt', String(openAuflagen.length), true);
   if (nrelList.length) row('Nicht relevante Bereiche', nrelList.join('; '));
   if (v.gesamt_massnahmen) row('Weitere Massnahmen', v.gesamt_massnahmen);
   if (v.bericht_naechste) row('Nächste Begehung', fmtDate(v.bericht_naechste));
   if (v.gesamt_bem) row('Bemerkungen', v.gesamt_bem);
-  if (ORD.length || openAuflagen.length) {
-    subHead('Massnahmenliste');
-    table(MCOLS, [...mangelRows(ORD), ...openAuflagen.map(o => ({
-      cells: [o.nr, `${o.s.title}: Auflage (${o.a.herkunft})`, 'Auflage nicht erfüllt: ' + o.a.text + (o.a.bemerkung ? '\nBemerkung: ' + o.a.bemerkung : ''), '-', '-'],
-      warn: [],
-    }))]);
-  }
 
   for (const s of SCHEMA) {
     if (s.id === 'gesamt' || !sectionHasContent(s)) continue;
@@ -626,13 +660,7 @@ function buildPdf() {
     const secM = ORD.filter(m => m.section === s.id);
     const f0 = items[0] || {};
     // Titel nicht allein am Seitenende: Platz für den ersten Inhalt mitrechnen (Karte bzw. Foto)
-    if (f0.type === 'gis') {
-      // gleiche Rechnung wie in gisMaps(): Karte + ca. 5 Zeilen Angaben (+ Legende, falls sie auf die Seite passt)
-      const m0 = state.gis[f0.id][0], mh0 = W * m0.h / m0.w, blk = 12 + mh0 + 4 + 5 * LH + 4;
-      let leg = 0;
-      if (m0.legend) { let lw = Math.min(120, m0.legend.w * 0.2646), lh = lw * m0.legend.h / m0.legend.w; if (lh > 90) lh = 90; leg = lh + 8; }
-      need(blk + leg <= BOTTOM - TOP ? blk + leg : blk);
-    }
+    if (f0.type === 'gis') need(Math.min(12 + gisLayout(state.gis[f0.id][0]).total, BOTTOM - TOP));
     else if (f0.type === 'photos') need(12 + 80);
     sectionHead(s.title);
     for (const f of items) {
@@ -928,11 +956,13 @@ async function init() {
   state.gis ||= {};
   state.maengel ||= [];
   state.nrel ||= {};
+  state.id ||= uid(); // Protokoll-ID für den CSV-Export
   await loadPresets();
   loadPdfLogo();
   document.getElementById('appVersion').textContent = 'App-Version ' + APP_VERSION;
   render();
   setSaveState('');
+  initCsv();
   $('mgSave').onclick = saveMangel;
   $('mgDelete').onclick = deleteMangel;
   $('mgCancel').onclick = () => $('dlgMangel').close();

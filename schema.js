@@ -10,6 +10,11 @@ const ZONEN = ['S1 (Fassungsbereich)', 'S2 (Engere Schutzzone)', 'S3 (Weitere Sc
 
 const SCHEMA = [
   {
+    id: 'maengel', title: 'Mängelliste', noPhotos: true,
+    intro: 'Mängel bei der jeweiligen Frage mit «+ Mangel» erfassen. Hier stehen alle Mängel dieser Begehung; antippen zum Bearbeiten. Im PDF steht die Liste ganz oben.',
+    fields: [{ id: 'maengel_ml', label: 'Erfasste Mängel', type: 'mlist' }],
+  },
+  {
     id: 'allg', title: 'Allgemeine Angaben', fields: [
       { id: 'datum', label: 'Datum', type: 'date', req: true },
       { id: 'wetter', label: 'Wetter', type: 'text', weather: true },
@@ -195,7 +200,6 @@ const SCHEMA = [
     id: 'gesamt', title: 'Gesamteindruck der Baustelle', fields: [
       { id: 'gesamt_beurteilung', label: 'Gesamtbeurteilung', type: 'radio', options: ['In Ordnung', 'Kleinere Mängel', 'Erhebliche Mängel'] },
       { id: 'gesamt_eindruck', label: 'Eindruck der Baustelle', type: 'textarea' },
-      { id: 'gesamt_ml', label: 'Massnahmenliste (automatisch aus den erfassten Mängeln)', type: 'mlist' },
       { id: 'gesamt_massnahmen', label: 'Weitere erforderliche Massnahmen, inkl. zuständiger Person', type: 'textarea' },
       { id: 'gesamt_bem', label: 'Bemerkungen', type: 'textarea' },
     ]
@@ -210,7 +214,7 @@ const SCHEMA = [
 ];
 
 // Umweltbereiche: Abschnitte mit Mängelerfassung, «n. rel.» für den ganzen Abschnitt und Auflagen
-const NON_ENV = ['allg', 'bericht', 'gesamt', 'gis'];
+const NON_ENV = ['maengel', 'allg', 'bericht', 'gesamt', 'gis'];
 for (const s of SCHEMA) s.env = !NON_ENV.includes(s.id);
 
 // Fotofeld in jedem Abschnitt ohne eigenes Fotofeld ergänzen (vor "Bemerkungen")

@@ -326,3 +326,43 @@ function checkRequired(go) {
   $('reqGo').onclick = () => { $('dlgReq').close(); go(); };
   $('dlgReq').showModal();
 }
+
+/* ---------- Kamera in der App (getUserMedia) ----------
+   Das HTML-Attribut «capture» ist nur ein Hinweis; einige Android-Browser (z.B. Samsung Internet)
+   zeigen trotzdem die Galerie. Darum eigenes Live-Bild mit Auslöser. */
+const camAvailable = () => !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) && window.isSecureContext;
+let camStream = null;
+async function openCamera(onFiles, fallback) {
+  const dlg = $('dlgCam'), video = $('camVideo'), err = $('camErr');
+  const shots = [];
+  const count = () => { $('camCount').textContent = shots.length ? `${shots.length} Foto${shots.length > 1 ? 's' : ''}` : ''; };
+  const stop = () => { if (camStream) camStream.getTracks().forEach(t => t.stop()); camStream = null; video.srcObject = null; };
+  // Fotos werden asynchron als JPEG erzeugt: vor dem Übernehmen auf alle warten
+  const finish = async keep => { stop(); dlg.close(); if (keep && shots.length) onFiles((await Promise.all(shots)).filter(Boolean)); };
+  err.hidden = true; video.hidden = false; count();
+  $('camInfo').textContent = 'Kamera wird gestartet …';
+  dlg.showModal();
+  try {
+    camStream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { ideal: 'environment' }, width: { ideal: 2560 }, height: { ideal: 1920 } }, audio: false });
+    video.srcObject = camStream;
+    await video.play().catch(() => {});
+    $('camInfo').textContent = 'Auslöser antippen – mehrere Fotos möglich';
+  } catch (e) {
+    stop(); dlg.close();
+    if (e && (e.name === 'NotAllowedError' || e.name === 'SecurityError')) toast('Kamerazugriff verweigert – in den Browser-Einstellungen erlauben. Es öffnet sich die System-Kamera.');
+    fallback && fallback();
+    return;
+  }
+  $('camShot').onclick = () => {
+    const w = video.videoWidth, h = video.videoHeight;
+    if (!w || !h) return;
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    c.getContext('2d').drawImage(video, 0, 0, w, h);
+    const fl = $('camFlash'); fl.classList.add('on'); setTimeout(() => fl.classList.remove('on'), 60);
+    shots.push(new Promise(res => c.toBlob(res, 'image/jpeg', 0.9))); count();
+  };
+  $('camDone').onclick = () => finish(true);
+  $('camClose').onclick = () => { if (!shots.length || confirm(`${shots.length} Foto(s) verwerfen?`)) finish(false); };
+  dlg.oncancel = e => { e.preventDefault(); $('camClose').onclick(); };
+}

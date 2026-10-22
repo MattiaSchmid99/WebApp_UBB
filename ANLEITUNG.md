@@ -36,6 +36,18 @@ Nach dem ersten Öffnen funktioniert die App auch ohne Netz.
 - Es gibt immer nur einen offenen Entwurf. Vor «Neu» das PDF speichern.
 - Browserdaten löschen bzw. die Home-Bildschirm-App entfernen löscht den offenen Entwurf.
 
+## 3b. Neu in Version 9
+
+- **CSV-Export** (Knopf «CSV» unten): eine Zeile pro Begehung, eine Spalte pro Feld, für die Auswertung in Excel.
+  - Erste Begehung eines Projekts: «Neue CSV-Datei erstellen» → in OneDrive im Projektordner speichern (Name `UBB-Begehungen_<Projekt>.csv`).
+  - Weitere Begehungen: «Bestehende CSV-Datei ergänzen» → die Sammel-CSV aus OneDrive wählen → die App hängt die Begehung als Zeile an → Datei unter dem gleichen Namen wieder in OneDrive speichern und die alte ersetzen.
+  - Wird dieselbe Begehung nochmals exportiert, ersetzt die App ihre Zeile (erkannt an der Spalte «Protokoll-ID»), statt sie doppelt anzuhängen.
+  - Neue Felder späterer App-Versionen werden als zusätzliche Spalten angehängt; bestehende Spalten bleiben.
+  - Format: UTF-8, Semikolon. Öffnen in Excel per Doppelklick.
+- **Kamera in der App**: «Kamera» öffnet ein Live-Bild mit Auslöser direkt in der App, mehrere Fotos nacheinander möglich, «Fertig» übernimmt sie. Beim ersten Mal fragt der Browser nach der Kamera-Berechtigung. Wird sie verweigert, öffnet sich stattdessen die Kamera-App des Systems.
+- **Mängelliste** als erste Karte der App und als erste Tabelle im PDF.
+- **GIS-Karten** im Stil der Kartenblätter der GIS Umweltübersicht: Blattkopf, Hintergrund mit 60 % Sättigung, Nordpfeil, Massstabsbalken, Übersichtskarte, Legende und Quellen. Layerliste ohne Lärm, Luft, NIS und Naturgefahren.
+
 ## 3a. Neu in Version 7
 
 - **Pflichtfelder** (mit * markiert): Datum, Projekt, UBB-Person, Art der Begehung. Fehlt eines, warnt die App vor dem PDF.
@@ -83,7 +95,7 @@ Hinweise:
 - GPS-Genauigkeit im Wald oder zwischen Gebäuden oft ±10–30 m. Für Waldabstände (2 m) ist die Karte nur ein Hinweis, keine Messung.
 - Die Amtliche Vermessung (Bodenbedeckung) ist nur bis ca. 1:10'000 lesbar.
 - Lädt ein kantonaler Dienst nicht (Meldung unter dem Knopf), erscheint nur Hintergrund und Standort. Grund ist meist, dass der Server die Übernahme ins Bild nicht erlaubt.
-- Die Layer stammen aus der «GIS Umweltübersicht» (Datei `gis-layers.js`): 43 Layer von Bund und geodienste.ch für alle Kantone, dazu 156 kantonale Layer. Der Kanton wird am Standort erkannt; seine Layer erscheinen dann in der Liste.
+- Die Layer stammen aus der «GIS Umweltübersicht» (Datei `gis-layers.js`): 31 Layer von Bund und geodienste.ch für alle Kantone, dazu 144 kantonale Layer (ohne Lärm, Luft, NIS und Naturgefahren). Der Kanton wird am Standort erkannt; seine Layer erscheinen dann in der Liste.
 - Layerliste anpassen: `gis-layers.js`.
 
 ## 6. Logo
@@ -95,7 +107,7 @@ Hinweise:
 - **Fragen, Optionen, Abschnitte:** in `schema.js`. Labels und Optionen frei änderbar. Die `id` eines bestehenden Feldes nicht ändern.
 - **PDF-Layout:** Funktion `buildPdf` in `app.js`. Schrift Helvetica 10 pt (PDF-Standardschrift, entspricht Arial in Form und Laufweite).
 - **GIS-Layer:** `gis-layers.js`.
-- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v8';` hochzählen (`ubb-v9` …), in `index.html` bei allen `<script src="…?v=8">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
+- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v9';` hochzählen (`ubb-v10` …), in `index.html` bei allen `<script src="…?v=9">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
 
 ## Dateien
 
@@ -104,7 +116,8 @@ Hinweise:
 | index.html | Oberfläche |
 | schema.js | Formularstruktur (Abschnitte, Fragen, Optionen) |
 | app.js | Logik: Speichern, Fotos, Presets, PDF, Teilen |
-| features.js | Mängel, Auflagen, Unterschrift, Wetter, Pflichtfelder, Abschnitt n. rel. |
+| features.js | Mängel, Auflagen, Unterschrift, Wetter, Pflichtfelder, Abschnitt n. rel., Kamera |
+| export.js | CSV-Export (neu / bestehende Datei ergänzen) |
 | gis.js | GIS-Lagekontrolle (GPS, Kanton, Kartenbild) |
 | gis-layers.js | Layerliste aus der GIS Umweltübersicht |
 | afry-logo.png, afry-logo-white.png | Logo |
