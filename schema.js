@@ -38,17 +38,16 @@ const SCHEMA = [
   },
   {
     id: 'laerm', title: 'Luft und Lärm', fields: [
+      { id: 'laerm_area', label: 'Lärm', type: 'sub', area: 'Luft und Lärm' },
       { id: 'laerm_stufePhase', label: 'Massnahmenstufe (lärmige Bauphase)', type: 'radio', options: ['A', 'B', 'C'] },
       { id: 'laerm_stufeArbeiten', label: 'Massnahmenstufe (lärmintensive Bauarbeiten)', type: 'radio', options: ['A', 'B', 'C'] },
       { id: 'laerm_ruhezeiten', label: 'Werden Ruhezeiten eingehalten?', hint: '19 bis 7 Uhr und 12 bis 13 Uhr', type: 'radio', options: J },
       { id: 'laerm_taetigkeiten', label: 'Welche lärmintensiven Tätigkeiten werden ausgeführt?', type: 'multi', options: ['Keine', 'Baggern', 'Rammen', 'Spitzen', 'Bohren / Fräsen', 'Schuttrutsche', 'Verkehr'], other: true },
       { id: 'laerm_andereQuellen', label: 'Sind andere Lärmquellen vorhanden?', hint: 'z.B. leerlaufende Motoren, grössere Abstände zur Siedlung möglich...', type: 'radio', options: J },
       { id: 'laerm_abschirmung', label: 'Ist eine Lärmabschirmung notwendig und möglich?', hint: 'z.B. bei festinstallierten, lärmintensiven Maschinen', type: 'radio', options: J },
+      { id: 'laerm_fotos', label: 'Fotos', type: 'photos' },
       { id: 'laerm_bem', label: 'Bemerkungen', type: 'textarea' },
-    ]
-  },
-  {
-    id: 'mg', title: 'Luftreinhaltung – Maschinen und Geräte (M+G)', aids: 'Baubewilligung, Maschinenliste, Checkliste Baustellenkontrolle', fields: [
+      { id: 'mg_area', label: 'Luftreinhaltung – Maschinen und Geräte (M+G)', type: 'sub', area: 'Luftreinhaltung – Maschinen und Geräte (M+G)', hint: 'Hilfsmittel: Baubewilligung, Maschinenliste, Checkliste Baustellenkontrolle' },
       { id: 'mg_auffaellig', label: 'Auffällige Baumaschinen (anhand Maschinenliste)', type: 'textarea' },
       { id: 'mg_fotos', label: 'Fotos', type: 'photos' },
       { id: 'mg_lkwAnzahl', label: 'Anzahl durchgeführter LKW-Kontrollen', type: 'number', width: 'w1' },
@@ -58,10 +57,18 @@ const SCHEMA = [
       { id: 'mg_partikelfilter', label: 'Sind Partikelfilter vorhanden?', hint: 'Kontrolle d. Auspuffes auf Sauberkeit', type: 'radio', options: JNR },
       { id: 'mg_untergrund', label: 'Sind Untergrundsflächen sauber?', hint: 'Gegen Staubaufwirbelung', type: 'radio', options: JNR },
       { id: 'mg_bem', label: 'Bemerkungen (Abweichungen von ML oder korrekter PF-Wartung)', type: 'textarea' },
+      { id: 'ersch_area', label: 'Erschütterungen und Körperschall', type: 'sub', area: 'Erschütterungen und Körperschall', hint: 'Hilfsmittel: SN 640 312a, Erschütterungsschutzkonzept' },
+      { id: 'ersch_arbeiten', label: 'Werden erschütterungsintensive Arbeiten ausgeführt?', hint: 'z.B. Rammen, Sprengen, Verdichten', type: 'radio', options: JNR },
+      { id: 'ersch_grenzwerte', label: 'Werden Grenzwerte gemäss SN 640 312a eingehalten?', type: 'radio', options: JNR },
+      { id: 'ersch_gebaeude', label: 'Sind erschütterungsempfindliche Gebäude oder Anlagen in der Nähe?', hint: 'z.B. Wohnbauten, Denkmäler, Leitungen', type: 'radio', options: JNR },
+      { id: 'ersch_messung', label: 'Wird eine Erschütterungsmessung durchgeführt?', type: 'radio', options: JNR },
+      { id: 'ersch_fotos', label: 'Fotos', type: 'photos' },
+      { id: 'ersch_bem', label: 'Bemerkungen', type: 'textarea' },
     ]
   },
   {
     id: 'gew', title: 'Gewässerschutz und Entwässerung', fields: [
+      { id: 'gew_area', label: 'Entwässerung', type: 'sub', area: 'Gewässerschutz und Entwässerung' },
       { id: 'gew_zone', label: 'Grundwasserschutzzone', type: 'radio', options: [...ZONEN, 'Kein Schutzgebiet'] },
       { id: 'gew_bereich', label: 'Gewässerschutzbereich', type: 'radio', options: ['Ao (oberirdisch)', 'Au (unterirdisch)', 'Zu (Zuströmbereich)', 'üB (übrige Bereiche)', 'Kein Schutzgebiet'] },
       { id: 'gew_fassung', label: 'Besteht die Gefahr einer Beschädigung einer Wasser- o. Quellfassung?', type: 'radio', options: JNR },
@@ -78,24 +85,9 @@ const SCHEMA = [
       { id: 'gew_neutralisationPh', label: 'pH-Wert Neutralisation', type: 'number', width: 'w1', ph: true, showIf: { f: 'gew_neutralisation', v: 'Ja' } },
       { id: 'gew_pumpensumpf', label: 'Pumpensümpfe', type: 'radio', options: JNR },
       { id: 'gew_pumpensumpfGeschuetzt', label: 'Pumpensümpfe geschützt?', type: 'radio', options: J, showIf: { f: 'gew_pumpensumpf', v: 'Ja' } },
+      { id: 'gew_fotos', label: 'Fotos', type: 'photos' },
       { id: 'gew_bem', label: 'Bemerkungen', type: 'textarea' },
-    ]
-  },
-  {
-    id: 'beton', title: 'Betonumschlag', fields: [
-      { id: 'beton_reinigung', label: 'Reinigungsplatz', type: 'radio', options: JNR },
-      { id: 'beton_reinigungGefasst', label: 'Abwasser gefasst?', type: 'radio', options: J, showIf: { f: 'beton_reinigung', v: 'Ja' } },
-      { id: 'beton_ba', label: 'Beton- o. Mörtelanlage (BA)', type: 'radio', options: JNR },
-      { id: 'beton_baBehandlung', label: 'BA: Abwasser', type: 'radio', options: ['recycliert', 'neutralisiert'], showIf: { f: 'beton_ba', v: 'Ja' } },
-      { id: 'beton_bu', label: 'Beton-Umschlaggerät (BU)', type: 'radio', options: JNR },
-      { id: 'beton_buBehandlung', label: 'BU: Abwasser', type: 'radio', options: ['recycliert', 'neutralisiert'], showIf: { f: 'beton_bu', v: 'Ja' } },
-      { id: 'beton_gwAbsenkung', label: 'Grundwasserabsenkung', type: 'radio', options: J },
-      { id: 'beton_gwAbsenkungPh', label: 'pH-Wert Grundwasserabsenkung', hint: 'Soll 6.5 – 9.0', type: 'number', width: 'w1', ph: true, showIf: { f: 'beton_gwAbsenkung', v: 'Ja' } },
-      { id: 'beton_bem', label: 'Bemerkungen', type: 'textarea' },
-    ]
-  },
-  {
-    id: 'wsf', title: 'Wassergefährdende Stoffe und Flüssigkeiten (WSF)', fields: [
+      { id: 'wsf_area', label: 'Wassergefährdende Stoffe und Flüssigkeiten (WSF)', type: 'sub', area: 'Wassergefährdende Stoffe und Flüssigkeiten (WSF)' },
       { id: 'wsf_korrekt', label: 'Werden wassergefährdende Stoffe korrekt gelagert?', hint: 'Auffangwannen, Löschwasserrückhalt, nur mit Ausnahmebewilligung in Schutzzone lagern', type: 'radio', options: JNR },
       { id: 'wsf_stoffarten', label: 'Stoff-Arten', type: 'text' },
       { id: 'wsf_lagerungText', label: 'Lagerung, Sicherung', type: 'text' },
@@ -105,6 +97,7 @@ const SCHEMA = [
       { id: 'wsf_lagerung', label: 'Lagerung', type: 'radio', options: IO },
       { id: 'wsf_sicherung', label: 'Sicherung', type: 'radio', options: IO },
       { id: 'wsf_umschlag', label: 'Umschlag / Betankung', type: 'radio', options: IO },
+      { id: 'wsf_fotos', label: 'Fotos', type: 'photos' },
       { id: 'wsf_bem', label: 'Bemerkungen', type: 'textarea' },
     ]
   },
@@ -121,9 +114,30 @@ const SCHEMA = [
   },
   {
     id: 'abf', title: 'Abfälle, umweltgefährdende Stoffe', fields: [
+      { id: 'abf_area', label: 'Abfälle', type: 'sub', area: 'Abfälle, umweltgefährdende Stoffe' },
       { id: 'abf_getrennt', label: 'Werden die Abfälle getrennt?', hint: 'Metall, Holz, Beton, etc. gemäss Mehrmuldenkonzept', type: 'radio', options: JNR },
       { id: 'abf_herum', label: 'Liegt Abfall herum?', type: 'radio', options: JNR },
+      { id: 'abf_fotos', label: 'Fotos', type: 'photos' },
       { id: 'abf_bem', label: 'Bemerkungen', type: 'textarea' },
+      { id: 'beton_area', label: 'Betonumschlag', type: 'sub', area: 'Betonumschlag' },
+      { id: 'beton_reinigung', label: 'Reinigungsplatz', type: 'radio', options: JNR },
+      { id: 'beton_reinigungGefasst', label: 'Abwasser gefasst?', type: 'radio', options: J, showIf: { f: 'beton_reinigung', v: 'Ja' } },
+      { id: 'beton_ba', label: 'Beton- o. Mörtelanlage (BA)', type: 'radio', options: JNR },
+      { id: 'beton_baBehandlung', label: 'BA: Abwasser', type: 'radio', options: ['recycliert', 'neutralisiert'], showIf: { f: 'beton_ba', v: 'Ja' } },
+      { id: 'beton_bu', label: 'Beton-Umschlaggerät (BU)', type: 'radio', options: JNR },
+      { id: 'beton_buBehandlung', label: 'BU: Abwasser', type: 'radio', options: ['recycliert', 'neutralisiert'], showIf: { f: 'beton_bu', v: 'Ja' } },
+      { id: 'beton_gwAbsenkung', label: 'Grundwasserabsenkung', type: 'radio', options: J },
+      { id: 'beton_gwAbsenkungPh', label: 'pH-Wert Grundwasserabsenkung', hint: 'Soll 6.5 – 9.0', type: 'number', width: 'w1', ph: true, showIf: { f: 'beton_gwAbsenkung', v: 'Ja' } },
+      { id: 'beton_fotos', label: 'Fotos', type: 'photos' },
+      { id: 'beton_bem', label: 'Bemerkungen', type: 'textarea' },
+    ]
+  },
+  {
+    id: 'proben', title: 'Materialbeprobungen', noPhotos: true,
+    intro: 'Mit «+ Beprobung hinzufügen» eine Probe erfassen. Die Position wird beim Hinzufügen per GPS bestimmt.',
+    fields: [
+      { id: 'proben_liste', label: 'Proben', type: 'proben' },
+      { id: 'proben_bem', label: 'Bemerkungen', type: 'textarea' },
     ]
   },
   {
@@ -163,24 +177,6 @@ const SCHEMA = [
     ]
   },
   {
-    id: 'ersch', title: 'Erschütterungen und Körperschall', aids: 'SN 640 312a, Erschütterungsschutzkonzept', fields: [
-      { id: 'ersch_arbeiten', label: 'Werden erschütterungsintensive Arbeiten ausgeführt?', hint: 'z.B. Rammen, Sprengen, Verdichten', type: 'radio', options: JNR },
-      { id: 'ersch_grenzwerte', label: 'Werden Grenzwerte gemäss SN 640 312a eingehalten?', type: 'radio', options: JNR },
-      { id: 'ersch_gebaeude', label: 'Sind erschütterungsempfindliche Gebäude oder Anlagen in der Nähe?', hint: 'z.B. Wohnbauten, Denkmäler, Leitungen', type: 'radio', options: JNR },
-      { id: 'ersch_messung', label: 'Wird eine Erschütterungsmessung durchgeführt?', type: 'radio', options: JNR },
-      { id: 'ersch_bem', label: 'Bemerkungen', type: 'textarea' },
-    ]
-  },
-  {
-    id: 'pers', title: 'Personalinstruktion / Umweltschulung', fields: [
-      { id: 'pers_instruiert', label: 'Wurde das Baustellenpersonal über Umweltschutzvorschriften instruiert?', hint: 'Abfalltrennung, Lärm, Umgang mit Gefahrstoffen', type: 'radio', options: JNR },
-      { id: 'pers_sub', label: 'Sind Subunternehmer ebenfalls instruiert?', type: 'radio', options: JNR },
-      { id: 'pers_notfallkonzept', label: 'Ist das Notfallkonzept auf der Baustelle vorhanden und bekannt?', type: 'radio', options: JNR },
-      { id: 'pers_notfallkontakte', label: 'Sind Notfallkontakte (UBB, Bauleitung, Behörden) aktuell und sichtbar aufgehängt?', type: 'radio', options: JNR },
-      { id: 'pers_bem', label: 'Bemerkungen', type: 'textarea' },
-    ]
-  },
-  {
     id: 'bericht', title: 'Berichterstattung / Reporting', noPhotos: true, fields: [
       { id: 'bericht_vorfaelle', label: 'Sind seit der letzten Begehung Umweltvorfälle aufgetreten?', type: 'radio', options: J },
       { id: 'vorfall_was', label: 'Ereignis: Was ist passiert?', hint: 'Art, Ort, betroffene Umweltbereiche, ausgetretene Stoffe/Mengen', type: 'textarea', showIf: { f: 'bericht_vorfaelle', v: 'Ja' } },
@@ -212,6 +208,12 @@ const SCHEMA = [
     ]
   },
 ];
+
+// Probentypen Materialbeprobung
+const PROBEN_TYPEN = ['Aushub', 'Ausbruch', 'Unterboden', 'Oberboden', 'Baustoffe', 'Ausbruchasphalt', 'Baustellenabwasser'];
+
+// Frühere Abschnitte, die in andere aufgegangen sind (für bestehende Entwürfe, Presets und Mängel)
+const SECTION_MOVED = { mg: 'laerm', ersch: 'laerm', wsf: 'gew', beton: 'abf', pers: 'bericht' };
 
 // Umweltbereiche: Abschnitte mit Mängelerfassung, «n. rel.» für den ganzen Abschnitt und Auflagen
 const NON_ENV = ['maengel', 'allg', 'bericht', 'gesamt', 'gis'];

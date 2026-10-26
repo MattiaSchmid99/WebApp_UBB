@@ -36,6 +36,16 @@ Nach dem ersten Öffnen funktioniert die App auch ohne Netz.
 - Es gibt immer nur einen offenen Entwurf. Vor «Neu» das PDF speichern.
 - Browserdaten löschen bzw. die Home-Bildschirm-App entfernen löscht den offenen Entwurf.
 
+## 3c. Neu in Version 10
+
+- **Bereiche zusammengelegt** (mit Zwischentiteln):
+  - *Luft und Lärm*: Lärm · Luftreinhaltung – Maschinen und Geräte (M+G) · Erschütterungen und Körperschall
+  - *Gewässerschutz und Entwässerung*: Entwässerung · Wassergefährdende Stoffe und Flüssigkeiten (WSF)
+  - *Abfälle, umweltgefährdende Stoffe*: Abfälle · Betonumschlag
+- **Materialbeprobungen** (neuer Bereich nach Abfälle): «+ Beprobung hinzufügen» legt eine Probe an und bestimmt die Position per GPS. Pro Probe: Bezeichnung, Datum, probenehmende Person (vorausgefüllt), Materialtyp (Aushub, Ausbruch, Unterboden, Oberboden, Baustoffe, Ausbruchasphalt, Baustellenabwasser), Position (GPS, neu bestimmen oder manuell LV95), Fotos, Bemerkung. Im PDF als Tabelle mit Fotos, im CSV als Spalten «Anzahl Proben» und «Proben».
+- **Personalinstruktion / Umweltschulung** entfernt.
+- Bestehende Entwürfe und Presets werden übernommen: Antworten bleiben erhalten, Auflagen und Mängel der früheren Abschnitte wandern in den neuen Bereich. Die CSV-Spalten heissen gleich wie bisher, bestehende Sammel-CSV können weiter ergänzt werden.
+
 ## 3b. Neu in Version 9
 
 - **CSV-Export** (Knopf «CSV» unten): eine Zeile pro Begehung, eine Spalte pro Feld, für die Auswertung in Excel.
@@ -107,7 +117,7 @@ Hinweise:
 - **Fragen, Optionen, Abschnitte:** in `schema.js`. Labels und Optionen frei änderbar. Die `id` eines bestehenden Feldes nicht ändern.
 - **PDF-Layout:** Funktion `buildPdf` in `app.js`. Schrift Helvetica 10 pt (PDF-Standardschrift, entspricht Arial in Form und Laufweite).
 - **GIS-Layer:** `gis-layers.js`.
-- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v9';` hochzählen (`ubb-v10` …), in `index.html` bei allen `<script src="…?v=9">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
+- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v10';` hochzählen (`ubb-v11` …), in `index.html` bei allen `<script src="…?v=10">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
 
 ## Dateien
 

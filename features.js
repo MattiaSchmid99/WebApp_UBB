@@ -366,3 +366,99 @@ async function openCamera(onFiles, fallback) {
   $('camClose').onclick = () => { if (!shots.length || confirm(`${shots.length} Foto(s) verwerfen?`)) finish(false); };
   dlg.oncancel = e => { e.preventDefault(); $('camClose').onclick(); };
 }
+
+/* ---------- Materialbeprobungen ---------- */
+function renderProben(f) {
+  const list = () => (state.values[f.id] ||= []);
+  const box = el('div', { class: 'proben' });
+  const changed = () => afterChange();
+
+  async function locate(p, posEl, btn) {
+    posEl.textContent = 'Position wird per GPS bestimmt …'; posEl.className = 'pos';
+    if (btn) btn.disabled = true;
+    try {
+      const g = await getGpsPosition();
+      if (!inSwitzerland(g.E, g.N)) throw new Error('Position liegt ausserhalb der Schweiz.');
+      Object.assign(p, { E: g.E, N: g.N, acc: g.acc, posTime: g.time, posSrc: 'GPS' });
+      changed();
+    } catch (e) { p.posErr = e.message || 'Position nicht verfügbar.'; }
+    if (btn) btn.disabled = false;
+    showPos(p, posEl);
+  }
+  function showPos(p, posEl) {
+    posEl.innerHTML = '';
+    if (p.E) {
+      posEl.className = 'pos' + (p.acc > 30 ? ' warn' : '');
+      posEl.append(el('b', {}, 'Position: '), `E ${Math.round(p.E).toLocaleString('de-CH')} / N ${Math.round(p.N).toLocaleString('de-CH')} (LV95)`, el('br'),
+        p.posSrc === 'GPS' ? `GPS, Genauigkeit ±${Math.round(p.acc)} m${p.acc > 30 ? ' – ungenau, evtl. nochmals bestimmen' : ''}` : 'manuell eingegeben');
+    } else {
+      posEl.className = 'pos warn';
+      posEl.textContent = p.posErr ? `Keine Position: ${p.posErr}` : 'Noch keine Position.';
+    }
+  }
+
+  function card(p, i) {
+    const inp = (attrs, key) => el('input', { ...attrs, value: p[key] || '', oninput: e => { p[key] = e.target.value; changed(); } });
+    const posEl = el('div', { class: 'pos' });
+    const btnPos = el('button', { type: 'button', class: 'btn sm' }, 'Position neu bestimmen');
+    btnPos.onclick = () => locate(p, posEl, btnPos);
+    const manE = el('input', { type: 'text', inputmode: 'decimal', placeholder: "E, z.B. 2'683'250" });
+    const manN = el('input', { type: 'text', inputmode: 'decimal', placeholder: "N, z.B. 1'247'930" });
+    const setMan = () => {
+      const E = parseCoord(manE.value), N = parseCoord(manN.value);
+      if (E && N && inSwitzerland(E, N)) { Object.assign(p, { E, N, acc: null, posSrc: 'manuell', posTime: new Date().toISOString() }); delete p.posErr; showPos(p, posEl); changed(); }
+    };
+    manE.oninput = setMan; manN.oninput = setMan;
+    const chips = el('div', { class: 'chips' }, PROBEN_TYPEN.map(t => el('button', {
+      type: 'button', class: 'chip', 'aria-pressed': p.typ === t ? 'true' : 'false',
+      onclick: e => { p.typ = p.typ === t ? '' : t; e.currentTarget.parentNode.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c.textContent === p.typ ? 'true' : 'false')); changed(); },
+    }, t)));
+    const phBox = el('div', { class: 'photos' });
+    const drawPh = () => {
+      phBox.innerHTML = '';
+      (p.photos ||= []).forEach(x => phBox.append(el('div', { class: 'ph' }, el('img', { src: x.data, alt: 'Foto Probe' }),
+        el('button', { type: 'button', class: 'del', 'aria-label': 'Foto löschen', onclick: () => { if (!confirm('Foto löschen?')) return; p.photos = p.photos.filter(y => y !== x); drawPh(); changed(); } }, '×'))));
+      phBox.append(...photoAddTiles(async files => {
+        for (const file of files) { try { p.photos.push(await compressImage(file)); } catch { toast('Foto konnte nicht geladen werden.'); } }
+        drawPh(); changed();
+      }));
+    };
+    drawPh(); showPos(p, posEl);
+    const bem = el('textarea', { rows: 2, placeholder: 'Bemerkung, z.B. Analyseparameter, Labor, Auffälligkeiten', oninput: e => { p.bem = e.target.value; autosize(e.target); changed(); } });
+    bem.value = p.bem || '';
+    const lab = t => el('div', { class: 'plab' }, t);
+    return el('div', { class: 'probe' },
+      el('div', { class: 'aufl-head' }, el('b', {}, `P${i + 1}`), el('span', { style: 'flex:1' }),
+        el('button', { type: 'button', class: 'btn sm', 'aria-label': 'Probe löschen', onclick: () => {
+          if (!confirm(`Probe P${i + 1} löschen?`)) return;
+          state.values[f.id] = list().filter(x => x !== p); draw(); changed();
+        } }, '×')),
+      lab('Probenahme-Bezeichnung'), inp({ type: 'text', placeholder: 'z.B. P1 Aushub Baugrube Nord', autocomplete: 'off' }, 'bez'),
+      el('div', { class: 'row2' },
+        el('div', {}, lab('Datum'), inp({ type: 'date' }, 'datum')),
+        el('div', {}, lab('Probenehmende Person'), inp({ type: 'text', autocomplete: 'off' }, 'person'))),
+      lab('Materialtyp'), chips,
+      lab('Position'), posEl,
+      el('div', { class: 'row2' }, btnPos),
+      el('details', { class: 'manual' }, el('summary', {}, 'Koordinaten manuell eingeben (LV95)'), el('div', { class: 'row2' }, manE, manN)),
+      lab('Fotos'), phBox,
+      lab('Bemerkung'), bem);
+  }
+
+  function draw() {
+    box.innerHTML = '';
+    list().forEach((p, i) => box.append(card(p, i)));
+    box.append(el('button', {
+      type: 'button', class: 'btn primary', style: 'max-width:none;width:100%', onclick: () => {
+        const n = list().length + 1;
+        const p = { id: uid(), bez: `P${n}`, datum: state.values.datum || today(), person: state.values.ubbName || '', typ: '', E: null, N: null, acc: null, photos: [], bem: '' };
+        list().push(p); draw(); changed();
+        const c = box.querySelectorAll('.probe')[n - 1];
+        c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        locate(p, c.querySelector('.pos'), null); // Position automatisch per GPS
+      },
+    }, '+ Beprobung hinzufügen'));
+  }
+  draw();
+  return box;
+}

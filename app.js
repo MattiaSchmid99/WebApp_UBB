@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '9'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
+const APP_VERSION = '10'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
 
 /* ---------- Speicher (IndexedDB, Fallback: nur im Arbeitsspeicher) ---------- */
 const DB = (() => {
@@ -61,6 +61,23 @@ function freshState(keep) {
 const resetAuflagen = arr => (Array.isArray(arr) ? arr : []).filter(a => a && String(a.text || '').trim())
   .map(a => ({ id: uid(), text: String(a.text).slice(0, 2000), herkunft: String(a.herkunft || 'Baubewilligung').slice(0, 40), status: '', bemerkung: '' }));
 
+// Entwürfe/Presets aus Versionen vor der Zusammenlegung der Bereiche übernehmen:
+// Auflagen der früheren Abschnitte in den neuen Bereich verschieben, Mängel umhängen
+function migrateValues(values) {
+  for (const [old, neu] of Object.entries(SECTION_MOVED)) {
+    const k = old + '_auflagen', t = neu + '_auflagen';
+    if (!Array.isArray(values[k])) continue;
+    if (FIELDS[t]) values[t] = [...(Array.isArray(values[t]) ? values[t] : []), ...values[k]];
+    delete values[k];
+  }
+  return values;
+}
+function migrateState(st) {
+  migrateValues(st.values);
+  st.maengel.forEach(m => { if (SECTION_MOVED[m.section]) m.section = SECTION_MOVED[m.section]; });
+  for (const k of Object.keys(st.nrel)) if (!SCHEMA.some(s => s.id === k)) delete st.nrel[k];
+}
+
 let saveTimer = null;
 function scheduleSave() {
   setSaveState('…');
@@ -115,6 +132,7 @@ function isFilled(f) {
     case 'gis': return ((state.gis || {})[f.id] || []).length > 0;
     case 'auflagen': return Array.isArray(v) && v.some(a => String(a.text || '').trim());
     case 'mlist': return false;
+    case 'proben': return Array.isArray(v) && v.length > 0;
     case 'multi': return (Array.isArray(v) && v.length > 0) || !!(state.values[f.id + '_andere'] || '').trim();
     case 'radio': return (v != null && v !== '') || !!(f.other && (state.values[f.id + '_andere'] || '').trim());
     default: return v != null && String(v).trim() !== '';
@@ -144,7 +162,9 @@ function afterChange() {
     const mc = s.id === 'maengel' ? state.maengel.length : state.maengel.filter(m => m.section === s.id).length;
     const nr = !!state.nrel[s.id];
     const b = document.getElementById('b_' + s.id);
+    const np = s.id === 'proben' ? (state.values.proben_liste || []).length : 0;
     b.textContent = s.id === 'maengel' ? (mc ? `${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}` : 'keine')
+      : np && !nr ? `${np} ${np === 1 ? 'Probe' : 'Proben'}` + (mc ? ` · ${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}` : '')
       : nr ? 'n. rel.' : (n ? `${n} ausgefüllt` : 'leer') + (mc ? ` · ${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}` : '');
     b.classList.toggle('on', n > 0 || nr);
     b.classList.toggle('warn', mc > 0 && !nr);
@@ -204,7 +224,7 @@ function labelEl(f, forId) {
 const canMangel = f => SCHEMA.find(s => s.id === f.section).env && ['radio', 'multi', 'text', 'number', 'textarea'].includes(f.type);
 
 function renderField(f) {
-  if (f.type === 'sub') return el('div', { class: 'sub', id: 'f_' + f.id }, f.label);
+  if (f.type === 'sub') return el('div', { class: f.area ? 'sub area' : 'sub', id: 'f_' + f.id }, f.label, f.hint ? el('span', { class: 'hint' }, f.hint) : null);
   const w = el('div', { class: ['f', f.width, f.showIf ? 'cond' : ''].filter(Boolean).join(' '), id: 'f_' + f.id });
   const v = state.values[f.id];
   const inpId = 'i_' + f.id;
@@ -252,6 +272,8 @@ function renderField(f) {
     w.append(labelEl(f), signaturePad(f));
   } else if (f.type === 'auflagen') {
     w.append(renderAuflagen(f));
+  } else if (f.type === 'proben') {
+    w.append(renderProben(f));
   } else if (f.type === 'mlist') {
     w.append(labelEl(f), el('div', { class: 'mlist', id: 'mlAll' }));
   }
@@ -379,6 +401,7 @@ function valueText(f) {
   if (f.type === 'date') return fmtDate(v);
   if (f.type === 'datetime') return fmtDateTime(v);
   if (f.type === 'auflagen') { const n = (v || []).length; return `${n} Auflage${n === 1 ? '' : 'n'}`; }
+  if (f.type === 'proben') { const n = (v || []).length; return `${n} Probe${n === 1 ? '' : 'n'}`; }
   if (f.ph) {
     const n = parseFloat(String(v).replace(',', '.'));
     return String(v) + (!isNaN(n) && (n < 6.5 || n > 9) ? '  (ausserhalb Soll 6.5 - 9.0)' : '');
@@ -433,6 +456,17 @@ function buildPdf() {
     doc.setFont('helvetica', 'bold'); doc.setFontSize(FS); doc.setTextColor(255, 255, 255);
     doc.text(clean(title).toUpperCase(), M + 3, y + 5.1, { charSpace: 0.25 });
     y += 7.5;
+  }
+
+  // Titel eines Teilbereichs (z.B. «Betonumschlag» im Bereich Abfälle)
+  function areaHead(title) {
+    need(18);
+    y += 3;
+    doc.setFont('helvetica', 'bold'); doc.setFontSize(FS); doc.setTextColor(...C.ink);
+    doc.text(clean(title), M, y + 4);
+    y += 5.5;
+    doc.setDrawColor(0, 0, 0); doc.setLineWidth(0.3); doc.line(M, y, M + W, y); doc.setLineWidth(0.2);
+    y += 0.5;
   }
 
   function subHead(title) {
@@ -570,6 +604,15 @@ function buildPdf() {
     }
   }
 
+  // Materialbeprobungen: Tabelle, danach Fotos der Proben
+  function probenTable(list) {
+    const fmtPos = p => p.E ? `E ${Math.round(p.E).toLocaleString('de-CH')}\nN ${Math.round(p.N).toLocaleString('de-CH')}` + (p.acc ? `\n+/-${Math.round(p.acc)} m` : '') : '-';
+    table([{ t: 'Nr.', w: 9 }, { t: 'Bezeichnung', w: 29 }, { t: 'Materialtyp', w: 35 }, { t: 'Datum', w: 21 }, { t: 'Probenahme durch', w: 27 }, { t: 'Position (LV95)', w: 28 }, { t: 'Bemerkung', w: 31 }],
+      list.map((p, i) => ({ cells: [`P${i + 1}`, p.bez || '-', p.typ || '-', p.datum ? fmtDate(p.datum) : '-', p.person || '-', fmtPos(p), p.bem || ''], warn: [] })));
+    const ph = list.flatMap((p, i) => (p.photos || []).map((x, k) => ({ ...x, id: x.id || p.id + k, caption: `${p.bez || 'P' + (i + 1)}${p.typ ? ' (' + p.typ + ')' : ''}` })));
+    if (ph.length) photos(ph);
+  }
+
   // Tabelle mit Kopfzeile; Kopf wird bei Seitenumbruch wiederholt
   function table(cols, rows) {
     const FS2 = 9, LH2 = 4.1, PAD = 2;
@@ -649,11 +692,12 @@ function buildPdf() {
     if (s.id === 'gesamt' || !sectionHasContent(s)) continue;
     // Nur sichtbare + ausgefüllte Felder; Zwischentitel nur, wenn darunter etwas ausgefüllt ist
     const items = [];
-    let pendingSub = null;
+    // Zwischentitel nur ausgeben, wenn darunter etwas ausgefüllt ist; Teilbereichs-Titel bleiben vor Unter-Titeln
+    let pending = [];
     for (const f of s.fields) {
-      if (f.type === 'sub') { pendingSub = f; continue; }
+      if (f.type === 'sub') { pending = f.area ? [f] : [...pending.filter(x => x.area), f]; continue; }
       if (!isVisible(f) || !isFilled(f) || f.type === 'signature' || f.type === 'auflagen' || SKIP_PDF.has(f.id)) continue;
-      if (pendingSub) { items.push(pendingSub); pendingSub = null; }
+      items.push(...pending); pending = [];
       items.push(f);
     }
     const aufl = s.fields.filter(f => f.type === 'auflagen' && isFilled(f)).flatMap(f => state.values[f.id].filter(a => String(a.text || '').trim()));
@@ -664,7 +708,8 @@ function buildPdf() {
     else if (f0.type === 'photos') need(12 + 80);
     sectionHead(s.title);
     for (const f of items) {
-      if (f.type === 'sub') subHead(f.label);
+      if (f.type === 'sub') (f.area ? areaHead : subHead)(f.label);
+      else if (f.type === 'proben') probenTable(state.values[f.id]);
       else if (f.type === 'photos') photos(state.photos[f.id]);
       else if (f.type === 'gis') gisMaps(state.gis[f.id]);
       else {
@@ -797,7 +842,7 @@ async function storePresets() {
 }
 
 // Felder, die in einem Preset vorkommen dürfen
-const presetable = f => !['photos', 'sub', 'gis', 'signature', 'mlist'].includes(f.type) && f.id !== 'datum';
+const presetable = f => !['photos', 'sub', 'gis', 'signature', 'mlist', 'proben'].includes(f.type) && f.id !== 'datum';
 // Werte eines Feldes inkl. «Andere»-Text
 function fieldValues(src, id) {
   const out = {};
@@ -808,6 +853,7 @@ function fieldValues(src, id) {
 const presetFieldIds = p => [...new Set(Object.keys(p.values).map(k => k.replace(/_andere$/, '')))].filter(id => FIELDS[id]);
 
 function applyPreset(p) {
+  migrateValues(p.values);
   for (const id of presetFieldIds(p)) {
     delete state.values[id]; delete state.values[id + '_andere'];
     Object.assign(state.values, fieldValues(p.values, id));
@@ -913,6 +959,7 @@ async function importPresets(file) {
     if (!name || !raw.values || typeof raw.values !== 'object') continue;
     // Nur bekannte Felder und gültige Werttypen übernehmen
     const values = {};
+    migrateValues(raw.values); // Presets aus früheren Versionen
     for (const [k, v] of Object.entries(raw.values)) {
       const f = FIELDS[k.replace(/_andere$/, '')];
       if (!f || !presetable(f)) continue;
@@ -957,6 +1004,7 @@ async function init() {
   state.maengel ||= [];
   state.nrel ||= {};
   state.id ||= uid(); // Protokoll-ID für den CSV-Export
+  migrateState(state);
   await loadPresets();
   loadPdfLogo();
   document.getElementById('appVersion').textContent = 'App-Version ' + APP_VERSION;

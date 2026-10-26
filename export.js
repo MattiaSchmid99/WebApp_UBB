@@ -19,12 +19,22 @@ function csvRecord() {
   const rec = [[CSV_ID, state.id], ['Exportiert am', new Date().toLocaleString('de-CH')], ['App-Version', APP_VERSION]];
   for (const s of SCHEMA) {
     if (s.id === 'maengel' || s.id === 'gis') continue;
+    // Spaltenname «Teilbereich: Frage»; Teilbereiche tragen den früheren Abschnittsnamen,
+    // damit Sammel-CSV aus älteren Versionen die gleichen Spalten behalten
+    let area = '';
     for (const f of s.fields) {
+      if (f.type === 'sub') { if (f.area) area = f.area; continue; }
       if (CSV_SKIP_TYPES.includes(f.type)) continue;
-      const head = `${s.title}: ${f.type === 'auflagen' ? 'Auflagen' : f.label}`;
-      let val = '';
-      if (!state.nrel[s.id] && isVisible(f) && isFilled(f)) val = f.type === 'auflagen' ? auflagenText(state.values[f.id]) : valueText(f);
-      rec.push([head, val]);
+      const pre = f.type === 'auflagen' ? s.title : (area || s.title); // Auflagen gelten für den ganzen Bereich
+      const ok = !state.nrel[s.id] && isVisible(f) && isFilled(f);
+      if (f.type === 'proben') {
+        const pl = ok ? state.values[f.id] : [];
+        rec.push([`${pre}: Anzahl Proben`, String(pl.length)]);
+        rec.push([`${pre}: Proben`, pl.map((p, i) => [`${p.bez || 'P' + (i + 1)} [${p.typ || '-'}]`, p.datum && fmtDate(p.datum), p.person,
+          p.E && `E ${Math.round(p.E)} / N ${Math.round(p.N)}${p.acc ? ' (±' + Math.round(p.acc) + ' m)' : ''}`, p.bem].filter(Boolean).join(', ')).join(' | ')]);
+        continue;
+      }
+      rec.push([`${pre}: ${f.type === 'auflagen' ? 'Auflagen' : f.label}`, ok ? (f.type === 'auflagen' ? auflagenText(state.values[f.id]) : valueText(f)) : '']);
     }
   }
   const ord = orderedMaengel();
@@ -35,7 +45,8 @@ function csvRecord() {
     `M${i + 1} [${secT(m.section)} – ${FIELDS[m.ref] ? FIELDS[m.ref].label : (m.refLabel || '')}]`,
     'Mangel: ' + m.text, m.massnahme && 'Massnahme: ' + m.massnahme, m.verantwortlich && 'Verantwortlich: ' + m.verantwortlich,
     m.frist && 'Frist: ' + fmtDate(m.frist)].filter(Boolean).join('; ')).join(' | ')]);
-  const nPhotos = Object.values(state.photos).reduce((n, l) => n + (l || []).length, 0) + state.maengel.reduce((n, m) => n + (m.photos || []).length, 0);
+  const nPhotos = Object.values(state.photos).reduce((n, l) => n + (l || []).length, 0) + state.maengel.reduce((n, m) => n + (m.photos || []).length, 0)
+    + (state.values.proben_liste || []).reduce((n, p) => n + (p.photos || []).length, 0);
   rec.push(['Fotos: Anzahl', String(nPhotos)]);
   const maps = Object.values(state.gis || {}).flat();
   rec.push(['GIS-Karten', maps.map((m, i) => {

@@ -223,6 +223,19 @@ dialog.cam[open] { display: flex; flex-direction: column; }
 .bar .btn { padding: 12px 11px; font-size: 15px; }
 dialog .opt { border: 1px solid var(--line); padding: 12px; margin-bottom: 10px; }
 dialog .opt p { margin: 6px 0 0; font-size: 13px; }
+
+/* Version 10: Teilbereiche, Materialbeprobungen */
+.sub.area { font-size: 14px; color: #000; letter-spacing: .05em; padding-top: 12px; border-top: 2px solid #000; }
+.sub.area .hint { text-transform: none; letter-spacing: 0; font-weight: 400; margin-top: 3px; }
+.proben { width: 100%; display: flex; flex-direction: column; gap: 12px; }
+.probe { background: #fff; border: 1px solid var(--line); border-left: 4px solid #000; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; }
+.probe .plab { font-size: 13.5px; font-weight: 700; margin-top: 6px; }
+.probe .row2 { display: flex; gap: 8px; }
+.probe .row2 > * { flex: 1; min-width: 0; }
+.probe .pos { font-size: 13.5px; background: var(--bg); padding: 8px 10px; line-height: 1.5; }
+.probe .pos.warn { color: var(--warn); }
+.probe details.manual summary { font-size: 13.5px; cursor: pointer; color: var(--muted); }
+.probe details.manual .row2 { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -364,12 +377,12 @@ dialog .opt p { margin: 6px 0 0; font-size: 13px; }
 
 <div class="toast" id="toast"></div>
 
-<script src="jspdf.umd.min.js?v=9"></script>
-<script src="schema.js?v=9"></script>
-<script src="gis-layers.js?v=9"></script>
-<script src="gis.js?v=9"></script>
-<script src="features.js?v=9"></script>
-<script src="export.js?v=9"></script>
-<script src="app.js?v=9"></script>
+<script src="jspdf.umd.min.js?v=10"></script>
+<script src="schema.js?v=10"></script>
+<script src="gis-layers.js?v=10"></script>
+<script src="gis.js?v=10"></script>
+<script src="features.js?v=10"></script>
+<script src="export.js?v=10"></script>
+<script src="app.js?v=10"></script>
 </body>
 </html>
