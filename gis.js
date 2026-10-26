@@ -210,24 +210,8 @@ async function buildMap(layer, bg, scale, pos) {
   g.beginPath(); g.moveTo(cx - 26 * k, cy); g.lineTo(cx + 26 * k, cy); g.moveTo(cx, cy - 26 * k); g.lineTo(cx, cy + 26 * k); g.stroke();
 
   const u = PX_PER_MM; // 1 mm in Pixel
-  // Nordpfeil oben rechts: «N ▲»
-  g.font = `bold ${Math.round(9 * 0.3528 * u)}px Arial, Helvetica, sans-serif`; g.textAlign = 'center';
-  const nW = 8 * u, nH = 10 * u, nX = MAP_PX_W - 4 * u - nW, nY = 4 * u;
-  boxText(g, nX, nY, nW, nH);
-  g.fillStyle = '#000'; g.fillText('N', nX + nW / 2, nY + 4.4 * u);
-  g.beginPath(); g.moveTo(nX + nW / 2, nY + 5.4 * u); g.lineTo(nX + nW / 2 - 1.6 * u, nY + 8.4 * u); g.lineTo(nX + nW / 2 + 1.6 * u, nY + 8.4 * u); g.closePath(); g.fill();
-
-  // Massstabsbalken unten links: Länge oben, Balken, Massstab unten
-  const steps = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000];
-  const len = steps.filter(x => x <= gw / 4).pop() || 10, lpx = len / mpp;
-  const fs = Math.round(7.5 * 0.3528 * u);
-  g.font = `${fs}px Arial, Helvetica, sans-serif`; g.textAlign = 'left';
-  const sbW = lpx + 4 * u, sbH = 12 * u, sbX = 4 * u, sbY = MAP_PX_H - 4 * u - sbH;
-  boxText(g, sbX, sbY, sbW, sbH);
-  g.fillStyle = '#000'; g.fillText(len >= 1000 ? `${len / 1000} km` : `${len} m`, sbX + 2 * u, sbY + 1 * u + fs);
-  const by = sbY + 1.5 * u + fs; g.lineWidth = 0.3 * u; g.strokeStyle = '#000';
-  g.beginPath(); g.moveTo(sbX + 2 * u, by); g.lineTo(sbX + 2 * u, by + 2 * u); g.lineTo(sbX + 2 * u + lpx, by + 2 * u); g.lineTo(sbX + 2 * u + lpx, by); g.stroke();
-  g.fillText(`1:${fmtCH(scale)}`, sbX + 2 * u, by + 2.6 * u + fs);
+  drawNorth(g, u);
+  drawScaleBar(g, u, gw, mpp, scale);
 
   // Übersichtskarte unten rechts: 7-facher Ausschnitt, Kartenrahmen rot
   const oX = MAP_PX_W - 4 * u - ovPxW, oY = MAP_PX_H - 4 * u - ovPxH;
@@ -259,6 +243,68 @@ function fitText(g, s, max) {
   if (g.measureText(s).width <= max) return s;
   while (s.length > 4 && g.measureText(s + '…').width > max) s = s.slice(0, -1);
   return s + '…';
+}
+
+// Nordpfeil oben rechts: «N ▲» (wie GIS Umweltübersicht)
+function drawNorth(g, u) {
+  g.font = `bold ${Math.round(9 * 0.3528 * u)}px Arial, Helvetica, sans-serif`; g.textAlign = 'center';
+  const nW = 8 * u, nH = 10 * u, nX = MAP_PX_W - 4 * u - nW, nY = 4 * u;
+  boxText(g, nX, nY, nW, nH);
+  g.fillStyle = '#000'; g.fillText('N', nX + nW / 2, nY + 4.4 * u);
+  g.beginPath(); g.moveTo(nX + nW / 2, nY + 5.4 * u); g.lineTo(nX + nW / 2 - 1.6 * u, nY + 8.4 * u); g.lineTo(nX + nW / 2 + 1.6 * u, nY + 8.4 * u); g.closePath(); g.fill();
+  g.textAlign = 'left';
+}
+// Massstabsbalken unten links: Länge oben, Balken, Massstab unten
+function drawScaleBar(g, u, gw, mpp, scale) {
+  const steps = [10, 20, 25, 50, 100, 200, 250, 500, 1000, 2000, 2500, 5000, 10000];
+  const len = steps.filter(x => x <= gw / 4).pop() || 10, lpx = len / mpp;
+  const fs = Math.round(7.5 * 0.3528 * u);
+  g.font = `${fs}px Arial, Helvetica, sans-serif`; g.textAlign = 'left';
+  const sbW = lpx + 4 * u, sbH = 12 * u, sbX = 4 * u, sbY = MAP_PX_H - 4 * u - sbH;
+  boxText(g, sbX, sbY, sbW, sbH);
+  g.fillStyle = '#000'; g.fillText(len >= 1000 ? `${len / 1000} km` : `${len} m`, sbX + 2 * u, sbY + 1 * u + fs);
+  const by = sbY + 1.5 * u + fs; g.lineWidth = 0.3 * u; g.strokeStyle = '#000';
+  g.beginPath(); g.moveTo(sbX + 2 * u, by); g.lineTo(sbX + 2 * u, by + 2 * u); g.lineTo(sbX + 2 * u + lpx, by + 2 * u); g.lineTo(sbX + 2 * u + lpx, by); g.stroke();
+  g.fillText(`1:${fmtCH(scale)}`, sbX + 2 * u, by + 2.6 * u + fs);
+}
+
+/* ---------- Übersichtskarte Neophytenstandorte ----------
+   Alle Bestände mit Standort, nummeriert wie in der Tabelle (N1 …); rot = bekämpfen.
+   Massstab automatisch aus der Ausdehnung (Standardmassstäbe), Kartenbild 180 × 120 mm. */
+const OV_SCALES = [500, 1000, 2000, 2500, 5000, 10000, 25000, 50000, 100000];
+async function buildPointsOverview(points) {
+  // points: [{ E, N, label, hot }]
+  const xs = points.map(p => p.E), ys = points.map(p => p.N);
+  const cE = (Math.min(...xs) + Math.max(...xs)) / 2, cN = (Math.min(...ys) + Math.max(...ys)) / 2;
+  const mapW = MAP_MM_W / 1000, mapH = mapW * MAP_PX_H / MAP_PX_W;            // Kartengrösse in m pro Massstabseinheit
+  // Standorte im Innenbereich halten (Ränder für Nordpfeil und Massstab frei): 84 % der Breite, 70 % der Höhe
+  const need = Math.max((Math.max(...xs) - Math.min(...xs)) / (mapW * 0.84), (Math.max(...ys) - Math.min(...ys)) / (mapH * 0.7)) * 1.05;
+  const scale = OV_SCALES.find(s => s >= need) || OV_SCALES[OV_SCALES.length - 1];
+  const gw = mapW * scale, gh = mapH * scale, mpp = gw / MAP_PX_W;
+  const bbox = [cE - gw / 2, cN - gh / 2, cE + gw / 2, cN + gh / 2];
+  const c = document.createElement('canvas'); c.width = MAP_PX_W; c.height = MAP_PX_H;
+  const g = c.getContext('2d');
+  g.fillStyle = '#eee'; g.fillRect(0, 0, MAP_PX_W, MAP_PX_H);
+  const bg = await loadImg(getMapUrl(GEOADMIN, 'ch.swisstopo.pixelkarte-farbe', bbox, false)).catch(() => null);
+  if (bg) drawDesaturated(g, bg, 0, 0, MAP_PX_W, MAP_PX_H, BG_SAT);
+  const u = PX_PER_MM;
+  const px = ([e, n]) => [(e - bbox[0]) / mpp, (bbox[3] - n) / mpp];
+  // nicht zu bekämpfende zuerst, damit rote Punkte oben liegen
+  [...points].sort((a, b) => a.hot - b.hot).forEach(p => {
+    const [x, y] = px([p.E, p.N]);
+    g.beginPath(); g.arc(x, y, 2.2 * u, 0, Math.PI * 2);
+    g.fillStyle = p.hot ? '#d00' : '#fff'; g.fill();
+    g.lineWidth = 0.5 * u; g.strokeStyle = p.hot ? '#fff' : '#d00'; g.stroke();
+    g.font = `bold ${Math.round(9 * 0.3528 * u)}px Arial, Helvetica, sans-serif`;
+    g.lineWidth = 0.9 * u; g.strokeStyle = 'rgba(255,255,255,0.95)'; g.lineJoin = 'round';
+    g.strokeText(p.label, x + 3 * u, y + 1.2 * u);
+    g.fillStyle = '#000'; g.fillText(p.label, x + 3 * u, y + 1.2 * u);
+  });
+  drawNorth(g, u);
+  drawScaleBar(g, u, gw, mpp, scale);
+  let data;
+  try { data = c.toDataURL('image/jpeg', 0.85); } catch { return null; }
+  return { data, w: MAP_PX_W, h: MAP_PX_H, scale, bgOk: !!bg };
 }
 
 /* ---------- Oberfläche ---------- */

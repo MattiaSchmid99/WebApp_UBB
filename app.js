@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '11'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
+const APP_VERSION = '12'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
 
 /* ---------- Speicher (IndexedDB, Fallback: nur im Arbeitsspeicher) ---------- */
 const DB = (() => {
@@ -639,6 +639,27 @@ function buildPdf() {
         const bk = b.bekaempfen === 'Ja' ? ['Ja', b.verantwortlich, b.frist && 'Frist ' + fmtDate(b.frist)].filter(Boolean).join('\n') : (b.bekaempfen || '-');
         return { cells: [`N${i + 1}`, neoName(b), neoAnh(b) ? 'Anh. ' + neoAnh(b) : '-', neoPos(b), bk, b.bem || ''], warn: b.bekaempfen === 'Ja' ? [4] : [] };
       }));
+    // Übersichtskarte der Standorte
+    if (neoPoints().length) {
+      const nm = state.neoMap, mh = nm ? W * nm.h / nm.w : 0;
+      if (nm) {
+        need(10 + mh + 10);
+        subHead('Übersichtskarte Neophytenstandorte');
+        doc.addImage(nm.data, 'JPEG', M, y, W, mh, nm.id, 'FAST');
+        doc.setDrawColor(153, 153, 153); doc.setLineWidth(0.3); doc.rect(M, y, W, mh, 'S'); doc.setLineWidth(0.2);
+        y += mh + 5.5;
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...C.muted);
+        // Legende unter der Karte
+        const dot = (x, hot) => { doc.setLineWidth(0.5); doc.setDrawColor(221, 0, 0); doc.setFillColor(...(hot ? [221, 0, 0] : [255, 255, 255])); doc.circle(x, y - 1.2, 1.6, 'FD'); doc.setLineWidth(0.2); };
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5); doc.setTextColor(...C.ink);
+        dot(M + 1.6, true); doc.text('Bestand bekämpfen', M + 5, y);
+        dot(M + 41.6, false); doc.text('nicht zu bekämpfen / offen', M + 45, y);
+        y += 4.5;
+        doc.setTextColor(...C.muted);
+        doc.text(clean(`Massstab 1:${Math.round(nm.scale).toLocaleString('de-CH')} (A4, Druck 100 %) · Nummern wie Tabelle · Hintergrund: map.geo.admin.ch (© swisstopo)`), M, y);
+        y += 6;
+      } else row('Übersichtskarte', 'Nicht verfügbar – beim Erstellen des PDF bestand keine Internetverbindung. PDF mit Netz erneut erstellen.', true);
+    }
     const ph = list.flatMap(b => (b.photos || []).map((x, k) => ({ ...x, id: x.id || b.id + k, caption: `N${state.values.org_bestaende.indexOf(b) + 1}: ${neoName(b)}` })));
     if (ph.length) photos(ph);
   }
@@ -820,7 +841,16 @@ function fileName() {
 
 let lastPdf = null;
 function onPdf() { checkRequired(makePdf); }
-function makePdf() {
+// Vor dem PDF die Übersichtskarte der Neophytenstandorte erzeugen (braucht Internet)
+async function makePdf() {
+  const btn = document.getElementById('btnPdf');
+  if (neoPoints().length) {
+    btn.disabled = true; btn.textContent = 'Erstelle Karte …';
+    try { await ensureNeoMap(); } catch (e) { console.warn(e); state.neoMap = null; }
+  }
+  makePdfNow();
+}
+function makePdfNow() {
   const btn = document.getElementById('btnPdf');
   btn.disabled = true; btn.textContent = 'Erstelle PDF …';
   setTimeout(() => {

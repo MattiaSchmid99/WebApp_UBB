@@ -587,3 +587,21 @@ function renderNeophyten(f) {
 
 // Bestände, die bekämpft werden müssen (für Massnahmenliste)
 const neoToFight = () => state.values.org_neophyten !== 'Ja' || state.nrel.org ? [] : (state.values.org_bestaende || []).filter(b => b.bekaempfen === 'Ja' && b.art);
+
+/* ---------- Übersichtskarte Neophytenstandorte (für das PDF) ---------- */
+function neoPoints() {
+  if (state.values.org_neophyten !== 'Ja' || state.nrel.org) return [];
+  return (state.values.org_bestaende || []).map((b, i) => ({ b, i })).filter(({ b }) => b.art && b.E && b.N)
+    .map(({ b, i }) => ({ E: b.E, N: b.N, label: `N${i + 1}`, hot: b.bekaempfen === 'Ja' }));
+}
+// Karte erzeugen bzw. aus dem Entwurf übernehmen, solange sich Standorte/Nummern/Massnahmen nicht geändert haben
+async function ensureNeoMap() {
+  const pts = neoPoints();
+  if (!pts.length) { state.neoMap = null; return; }
+  const key = JSON.stringify(pts.map(p => [Math.round(p.E), Math.round(p.N), p.label, p.hot]));
+  if (state.neoMap && state.neoMap.key === key && state.neoMap.bgOk) return;
+  if (!navigator.onLine) { if (!state.neoMap || state.neoMap.key !== key) state.neoMap = null; return; }
+  const m = await Promise.race([buildPointsOverview(pts), new Promise(r => setTimeout(() => r(null), 25000))]);
+  state.neoMap = m ? { key, id: 'neomap' + Date.now().toString(36), ...m } : null;
+  scheduleSave();
+}

@@ -39,6 +39,7 @@ Nach dem ersten Öffnen funktioniert die App auch ohne Netz.
 ## 3d. Neu in Version 11
 
 - **Invasive Neophyten** (Bereich «Umweltgefährdende Organismen», bei «Gibt es Neophyten …?» = Ja): «+ Bestand hinzufügen» legt einen Bestand an und bestimmt den Standort per GPS. Pro Bestand: Art aus FrSV Anhang 2.1 (Umgang verboten, 22 Arten/Gruppen) oder 2.2 (Inverkehrbringen verboten, 31 Arten) bzw. «Andere Art», Foto, Standort, Massnahme «Bekämpfen Ja/Nein» (bei Ja mit Verantwortlich und Frist), Bemerkung.
+- **Übersichtskarte Neophytenstandorte** (ab Version 12): Beim Erstellen des PDF erzeugt die App automatisch eine Karte mit allen Beständen mit Standort (Nummern wie in der Tabelle, rot = bekämpfen, weiss = nicht zu bekämpfen/offen). Der Massstab richtet sich nach der Ausdehnung (1:500 bis 1:100'000). Braucht Internet; ohne Netz steht im PDF ein Hinweis. Die Karte wird im Entwurf gespeichert und offline wiederverwendet, solange sich Standorte und Massnahmen nicht ändern.
 - Zu bekämpfende Bestände erscheinen in der Mängelliste der App und in der Massnahmenliste auf Seite 1 des PDF (Nr. N1, N2 …), in der Zusammenfassung und im CSV.
 - Die Fragen zu schützenswerten Biotopen und zu offenen Gruben/Schächten stehen neu unter «Flora, Fauna, Lebensräume». Die frühere, fast gleiche Frage «Bestehen Fallen für Kleintiere?» ist darin aufgegangen.
 - Bestehende Entwürfe: Die frühere Auswahl «Welche Neophyten-Arten?» wird in Bestände übernommen (ohne Foto und Standort). Die CSV-Spalten der verschobenen Fragen bleiben gleich.
@@ -125,7 +126,7 @@ Hinweise:
 - **Fragen, Optionen, Abschnitte:** in `schema.js`. Labels und Optionen frei änderbar. Die `id` eines bestehenden Feldes nicht ändern.
 - **PDF-Layout:** Funktion `buildPdf` in `app.js`. Schrift Helvetica 10 pt (PDF-Standardschrift, entspricht Arial in Form und Laufweite).
 - **GIS-Layer:** `gis-layers.js`.
-- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v11';` hochzählen (`ubb-v12` …), in `index.html` bei allen `<script src="…?v=11">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
+- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v12';` hochzählen (`ubb-v13` …), in `index.html` bei allen `<script src="…?v=12">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
 
 ## Dateien
 
