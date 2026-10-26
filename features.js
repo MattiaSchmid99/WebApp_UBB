@@ -301,7 +301,9 @@ async function fetchWeather(manual) {
       day && w.sunMin != null ? `Sonne letzte Stunde: ${Math.round(w.sunMin)} min` : null,
     ].filter(Boolean).join(', ') + ` (MeteoSchweiz, Station ${st.name}, ${km} km)`;
     if (!manual && state.values.wetter) return;
+    const rev0 = state.rev;
     setValue('wetter', txt);
+    if (!manual) { state.rev = rev0; updateSaveIndicator(); } // automatisch eingetragen: keine Bearbeitung
     const inp = $('i_wetter'); if (inp) inp.value = txt;
     set(`Quelle: MeteoSchweiz, Station ${st.name} (${km} km${st.h ? ', ' + Math.round(st.h) + ' m ü. M.' : ''}), Messung ${hhmm(w.t)} – Bewölkung bei Bedarf ergänzen`);
   } catch (e) {
@@ -313,7 +315,7 @@ async function fetchWeather(manual) {
 // Automatisch einmal pro Protokoll, wenn Wetter leer und Datum heute
 function autoWeather() {
   if (state.wxAuto || state.values.wetter || state.values.datum !== today()) return;
-  state.wxAuto = true; scheduleSave();
+  state.wxAuto = true; scheduleSave(true);
   fetchWeather(false);
 }
 
@@ -603,5 +605,5 @@ async function ensureNeoMap() {
   if (!navigator.onLine) { if (!state.neoMap || state.neoMap.key !== key) state.neoMap = null; return; }
   const m = await Promise.race([buildPointsOverview(pts), new Promise(r => setTimeout(() => r(null), 25000))]);
   state.neoMap = m ? { key, id: 'neomap' + Date.now().toString(36), ...m } : null;
-  scheduleSave();
+  scheduleSave(true);
 }

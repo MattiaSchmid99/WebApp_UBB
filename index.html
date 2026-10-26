@@ -238,6 +238,20 @@ dialog .opt p { margin: 6px 0 0; font-size: 13px; }
 .probe details.manual .row2 { margin-top: 8px; }
 .neo-mass:empty { display: none; }
 .probe select { min-height: 44px; }
+
+/* Version 13: Archiv, Begehungsdatei */
+#btnSave { position: relative; }
+#btnSave.dirty::after { content: ""; position: absolute; top: 7px; right: 9px; width: 10px; height: 10px; border-radius: 50%; background: #e0a050; }
+.pitem.cur { border-color: #000; border-width: 2px; }
+.pitem .st { font-size: 12.5px; }
+.st.warn { color: var(--warn); font-weight: 700; }
+.st.ok { color: var(--ok); }
+.flist { display: flex; flex-direction: column; gap: 8px; }
+.fitem { border: 1px solid var(--line); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.fitem .fl b { display: block; font-size: 14.5px; }
+.fitem .fl .fname { display: block; font-size: 12.5px; color: var(--muted); background: none; padding: 0; margin: 2px 0 0; word-break: break-all; }
+.fitem .fl .st { display: block; margin-top: 2px; }
+.fitem .fb { display: flex; gap: 6px; flex-wrap: wrap; }
 </style>
 </head>
 <body>
@@ -251,31 +265,18 @@ dialog .opt p { margin: 6px 0 0; font-size: 13px; }
 <p id="appVersion" style="text-align:center;font-size:12px;color:#5c5c5c;margin:14px 0 0"></p>
 
 <div class="bar">
-  <button class="btn" id="btnNew" type="button">Neu</button>
+  <button class="btn" id="btnArchive" type="button">Begehungen</button>
   <button class="btn" id="btnPresets" type="button">Presets</button>
-  <button class="btn" id="btnCsv" type="button">CSV</button>
-  <button class="btn primary" id="btnPdf" type="button">PDF erstellen</button>
+  <button class="btn primary" id="btnSave" type="button">Speichern</button>
 </div>
 
-<dialog id="dlgPdf">
-  <h2>PDF bereit</h2>
-  <p id="pdfHint"></p>
-  <div class="fname" id="pdfName"></div>
-  <div class="stack">
-    <button class="btn primary" id="btnShare" type="button">In OneDrive speichern / Teilen</button>
-    <button class="btn" id="btnDownload" type="button">Herunterladen</button>
-    <button class="btn" id="btnPreview" type="button">Vorschau</button>
-    <button class="btn" id="btnClosePdf" type="button">Schliessen</button>
-  </div>
-</dialog>
-
 <dialog id="dlgNew">
-  <h2>Neues Protokoll</h2>
-  <p>Das aktuelle Protokoll wird verworfen. Wurde es als PDF gespeichert?</p>
+  <h2>Neue Begehung</h2>
+  <p>Die aktuelle Begehung bleibt unter «Begehungen» auf dem Gerät gespeichert.</p>
   <label class="lbl" for="newPreset">Vorausfüllen mit</label>
   <select id="newPreset"></select>
   <div class="stack" style="margin-top:16px">
-    <button class="btn primary" id="btnNewOk" type="button">Neues Protokoll starten</button>
+    <button class="btn primary" id="btnNewOk" type="button">Neue Begehung starten</button>
     <button class="btn" id="btnNewCancel" type="button">Abbrechen</button>
   </div>
 </dialog>
@@ -352,39 +353,38 @@ dialog .opt p { margin: 6px 0 0; font-size: 13px; }
   <div class="flash" id="camFlash"></div>
 </dialog>
 
-<dialog id="dlgCsv">
-  <h2>Daten als CSV exportieren</h2>
-  <p>Eine Zeile pro Begehung, eine Spalte pro Feld. So lassen sich alle Begehungen eines Projekts in Excel zusammenführen.</p>
-  <div class="opt">
-    <button class="btn primary" id="csvNew" type="button" style="width:100%;max-width:none">Neue CSV-Datei erstellen</button>
-    <p>Für die erste Begehung eines Projekts.</p>
+<dialog id="dlgArchive" class="tall">
+  <h2>Begehungen</h2>
+  <p>Alle Begehungen bleiben auf diesem Gerät, bis sie gelöscht werden. Gesichert sind sie erst, wenn die Begehungsdatei in OneDrive gespeichert ist («Speichern»).</p>
+  <div class="stack" style="margin-bottom:14px">
+    <button class="btn primary" id="archNew" type="button">+ Neue Begehung</button>
   </div>
-  <div class="opt">
-    <label class="btn filebtn">Bestehende CSV-Datei ergänzen<input type="file" id="csvAppend" accept=".csv,text/csv,text/plain,application/vnd.ms-excel"></label>
-    <p>Sammel-CSV aus OneDrive wählen. Die Begehung wird als neue Zeile angehängt; ist sie schon enthalten, wird ihre Zeile ersetzt. Danach die Datei unter dem gleichen Namen wieder in OneDrive speichern.</p>
+  <div id="archList" class="plist"></div>
+  <div class="stack">
+    <label class="btn filebtn">Begehungsdatei öffnen<input type="file" id="archOpen" accept=".json,.txt,application/json,text/plain"></label>
+    <label class="btn filebtn">Sammel-CSV aus Begehungsdateien<input type="file" id="archCsv" multiple accept=".json,.txt,application/json,text/plain"></label>
+    <p class="small" style="margin:0">Mehrere Begehungsdateien wählen; die App erstellt daraus die Sammel-CSV (eine Zeile pro Begehung) und eine Liste aller Mängel, Auflagen, Proben und Neophyten-Bestände.</p>
+    <button class="btn" id="archClose" type="button">Schliessen</button>
   </div>
-  <div class="stack"><button class="btn" id="csvCancel" type="button">Abbrechen</button></div>
 </dialog>
 
-<dialog id="dlgCsvDone">
-  <h2>CSV bereit</h2>
-  <p id="csvInfo"></p>
-  <div class="fname" id="csvName"></div>
-  <div class="stack">
-    <button class="btn primary" id="csvShare" type="button">In OneDrive speichern / Teilen</button>
-    <button class="btn" id="csvDownload" type="button">Herunterladen</button>
-    <button class="btn" id="csvClose" type="button">Schliessen</button>
-  </div>
+<dialog id="dlgFiles" class="tall">
+  <h2 id="fTitle">Dateien</h2>
+  <p id="fInfo"></p>
+  <div id="fList" class="flist"></div>
+  <div id="fExtra" class="stack" style="margin-top:12px"></div>
+  <div class="stack" style="margin-top:8px"><button class="btn" id="fClose" type="button">Schliessen</button></div>
 </dialog>
 
 <div class="toast" id="toast"></div>
 
-<script src="jspdf.umd.min.js?v=12"></script>
-<script src="schema.js?v=12"></script>
-<script src="gis-layers.js?v=12"></script>
-<script src="gis.js?v=12"></script>
-<script src="features.js?v=12"></script>
-<script src="export.js?v=12"></script>
-<script src="app.js?v=12"></script>
+<script src="jspdf.umd.min.js?v=13"></script>
+<script src="schema.js?v=13"></script>
+<script src="gis-layers.js?v=13"></script>
+<script src="gis.js?v=13"></script>
+<script src="features.js?v=13"></script>
+<script src="export.js?v=13"></script>
+<script src="archive.js?v=13"></script>
+<script src="app.js?v=13"></script>
 </body>
 </html>

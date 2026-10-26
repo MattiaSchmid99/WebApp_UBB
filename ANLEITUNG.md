@@ -36,6 +36,28 @@ Nach dem ersten Öffnen funktioniert die App auch ohne Netz.
 - Es gibt immer nur einen offenen Entwurf. Vor «Neu» das PDF speichern.
 - Browserdaten löschen bzw. die Home-Bildschirm-App entfernen löscht den offenen Entwurf.
 
+## 3e. Daten sichern (ab Version 13) – wichtig
+
+**Grundsatz:** Die **Begehungsdatei** ist das Original. Sie enthält sämtliche Daten (alle Antworten, Mängel, Auflagen, Proben, Neophyten, GPS-Werte, Fotos mit Beschriftung, Karten, Unterschrift) und kann jederzeit wieder in der App geöffnet, angepasst und neu als PDF/CSV ausgegeben werden. PDF und CSV sind Ausgaben daraus.
+
+**Unten in der App:** «Begehungen» · «Presets» · «Speichern».
+
+- **Speichern** erstellt drei Dateien mit gleichem Namen:
+  - `….ubb.json` – Begehungsdatei. Auf Android heisst sie `….ubb.txt`, weil Android im Teilen-Menü keine .json-Dateien zulässt; der Inhalt ist identisch.
+  - `….pdf` – Protokoll
+  - `….csv` – diese Begehung als eine Zeile
+  «Alle 3 Dateien in OneDrive speichern» → Projektordner wählen. Zusätzlich: «Fotos und Karten als Bilder speichern» (JPG mit sprechenden Namen, z.B. `M1_…`, `P2_…`, `N3_…`) und «Bestehende Sammel-CSV ergänzen».
+- Ein **oranger Punkt** auf «Speichern» zeigt: Es gibt Änderungen, die noch nicht als Begehungsdatei gespeichert sind.
+- **Begehungen:** Alle Begehungen bleiben auf dem Gerät, bis sie gelöscht werden. «Neue Begehung» verwirft nichts mehr. Pro Begehung steht, ob die Begehungsdatei aktuell gespeichert ist. Beim Löschen einer nicht gespeicherten Begehung warnt die App deutlich. Leere bzw. unbearbeitete neue Begehungen räumt die App beim Wechsel selbst weg.
+- **Begehungsdatei öffnen:** Datei aus OneDrive wählen → die Begehung wird geöffnet (bzw. ersetzt die gleiche Begehung auf dem Gerät nach Rückfrage). So lassen sich Begehungen nachträglich anpassen, auch auf einem anderen Gerät.
+- **Sammel-CSV aus Begehungsdateien:** mehrere Begehungsdateien wählen → die App erstellt neu
+  - `UBB-Begehungen_<Projekt>.csv` – eine Zeile pro Begehung
+  - `UBB-Massnahmen-Proben-Neophyten_<Projekt>.csv` – eine Zeile pro Mangel, Auflage, Probe und Neophyten-Bestand (mit Typ, Nr., Bereich, Massnahme, Verantwortlich, Frist, Status, Koordinaten)
+  Die CSV-Dateien lassen sich so jederzeit vollständig neu erzeugen; das Ergänzen einer bestehenden CSV ist nicht mehr nötig.
+- **Weiterverarbeitung:** Die Begehungsdatei ist JSON. Sie enthält zusätzlich einen Teil «uebersicht» mit den gleichen Spalten wie die CSV, z.B. für Excel Power Query.
+
+**Grenze:** Das Speichern in OneDrive bleibt ein manueller Schritt. Erst danach ist eine Begehung ausserhalb des Smartphones gesichert.
+
 ## 3d. Neu in Version 11
 
 - **Invasive Neophyten** (Bereich «Umweltgefährdende Organismen», bei «Gibt es Neophyten …?» = Ja): «+ Bestand hinzufügen» legt einen Bestand an und bestimmt den Standort per GPS. Pro Bestand: Art aus FrSV Anhang 2.1 (Umgang verboten, 22 Arten/Gruppen) oder 2.2 (Inverkehrbringen verboten, 31 Arten) bzw. «Andere Art», Foto, Standort, Massnahme «Bekämpfen Ja/Nein» (bei Ja mit Verantwortlich und Frist), Bemerkung.
@@ -126,7 +148,7 @@ Hinweise:
 - **Fragen, Optionen, Abschnitte:** in `schema.js`. Labels und Optionen frei änderbar. Die `id` eines bestehenden Feldes nicht ändern.
 - **PDF-Layout:** Funktion `buildPdf` in `app.js`. Schrift Helvetica 10 pt (PDF-Standardschrift, entspricht Arial in Form und Laufweite).
 - **GIS-Layer:** `gis-layers.js`.
-- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v12';` hochzählen (`ubb-v13` …), in `index.html` bei allen `<script src="…?v=12">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
+- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v13';` hochzählen (`ubb-v14` …), in `index.html` bei allen `<script src="…?v=13">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
 
 ## Dateien
 
@@ -136,7 +158,8 @@ Hinweise:
 | schema.js | Formularstruktur (Abschnitte, Fragen, Optionen) |
 | app.js | Logik: Speichern, Fotos, Presets, PDF, Teilen |
 | features.js | Mängel, Auflagen, Unterschrift, Wetter, Pflichtfelder, Abschnitt n. rel., Kamera |
-| export.js | CSV-Export (neu / bestehende Datei ergänzen) |
+| export.js | CSV-Zeile und Ergänzen einer Sammel-CSV |
+| archive.js | Begehungen auf dem Gerät, Begehungsdatei, Speichern, Sammel-CSV aus Begehungsdateien |
 | gis.js | GIS-Lagekontrolle (GPS, Kanton, Kartenbild) |
 | gis-layers.js | Layerliste aus der GIS Umweltübersicht |
 | afry-logo.png, afry-logo-white.png | Logo |

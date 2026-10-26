@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '12'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
+const APP_VERSION = '13'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
 
 /* ---------- Speicher (IndexedDB, Fallback: nur im Arbeitsspeicher) ---------- */
 const DB = (() => {
@@ -28,6 +28,7 @@ const DB = (() => {
   return {
     get: k => tx('readonly', s => s.get(k)),
     set: (k, v) => tx('readwrite', s => s.put(v, k)),
+    del: k => tx('readwrite', s => s.delete(k)),
   };
 })();
 
@@ -55,7 +56,7 @@ function freshState(keep) {
       if (state.values[f.id + '_andere'] != null) values[f.id + '_andere'] = state.values[f.id + '_andere'];
     }
   }
-  return { id: uid(), values, photos: {}, gis: {}, maengel: [], nrel: {} };
+  return { id: uid(), rev: 0, savedRev: 0, values, photos: {}, gis: {}, maengel: [], nrel: {} };
 }
 // Auflagen für ein neues Protokoll: Text und Herkunft übernehmen, Status/Bemerkung leeren
 const resetAuflagen = arr => (Array.isArray(arr) ? arr : []).filter(a => a && String(a.text || '').trim())
@@ -89,21 +90,24 @@ function migrateState(st) {
   delete v.ffl_fallen;
 }
 
-let saveTimer = null;
-function scheduleSave() {
+let saveTimer = null, rendering = false;
+// Jede Änderung erhöht die Revision; so erkennt die App, ob die Begehungsdatei aktuell ist
+// quiet: technische Vermerke (z.B. Wetter schon abgefragt, Kartencache) zählen nicht als Änderung
+function scheduleSave(quiet) {
+  if (!rendering && !quiet) { state.rev = (state.rev || 0) + 1; updateSaveIndicator(); }
   setSaveState('…');
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     saveTimer = null;
-    try { await DB.set('draft', state); setSaveState('Gespeichert ✓'); }
-    catch (e) { setSaveState('Nicht gespeichert!'); console.error(e); }
+    try { await saveCurrent(); setSaveState('Lokal gesichert ✓'); }
+    catch (e) { setSaveState('Nicht gesichert!'); console.error(e); }
   }, 400);
 }
 // Beim Wechsel in den Hintergrund / Schliessen sofort speichern
 function flushSave() {
   if (!saveTimer) return;
   clearTimeout(saveTimer); saveTimer = null;
-  DB.set('draft', state).then(() => setSaveState('Gespeichert ✓')).catch(console.error);
+  saveCurrent().then(() => setSaveState('Lokal gesichert ✓')).catch(console.error);
 }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') flushSave(); });
 window.addEventListener('pagehide', flushSave);
@@ -225,7 +229,8 @@ function render() {
     if (s.id === 'allg') det.open = true;
     root.append(det);
   });
-  afterChange();
+  rendering = true;
+  try { afterChange(); } finally { rendering = false; }
 }
 
 function labelEl(f, forId) {
@@ -839,61 +844,6 @@ function fileName() {
   return parts.join('_') + '.pdf';
 }
 
-let lastPdf = null;
-function onPdf() { checkRequired(makePdf); }
-// Vor dem PDF die Übersichtskarte der Neophytenstandorte erzeugen (braucht Internet)
-async function makePdf() {
-  const btn = document.getElementById('btnPdf');
-  if (neoPoints().length) {
-    btn.disabled = true; btn.textContent = 'Erstelle Karte …';
-    try { await ensureNeoMap(); } catch (e) { console.warn(e); state.neoMap = null; }
-  }
-  makePdfNow();
-}
-function makePdfNow() {
-  const btn = document.getElementById('btnPdf');
-  btn.disabled = true; btn.textContent = 'Erstelle PDF …';
-  setTimeout(() => {
-    try {
-      const blob = buildPdf();
-      if (!blob) { toast('Noch keine Angaben erfasst.'); return; }
-      const name = fileName();
-      lastPdf = { blob, name, file: new File([blob], name, { type: 'application/pdf' }) };
-      document.getElementById('pdfName').textContent = name;
-      const canShare = !!(navigator.canShare && navigator.canShare({ files: [lastPdf.file] }));
-      document.getElementById('btnShare').style.display = canShare ? '' : 'none';
-      document.getElementById('pdfHint').innerHTML = canShare
-        ? 'Im Teilen-Menü <b>OneDrive</b> wählen und den Zielordner bestimmen. Auf dem iPhone geht auch «In Dateien sichern» → OneDrive.'
-        : 'Dieser Browser unterstützt das Teilen-Menü nicht. PDF herunterladen und in OneDrive hochladen.';
-      document.getElementById('dlgPdf').showModal();
-    } catch (e) {
-      console.error(e); toast('Fehler beim Erstellen des PDF.');
-    } finally {
-      btn.disabled = false; btn.textContent = 'PDF erstellen';
-    }
-  }, 30);
-}
-
-async function onShare() {
-  if (!lastPdf) return;
-  try {
-    await navigator.share({ files: [lastPdf.file], title: lastPdf.name });
-  } catch (e) {
-    if (e.name !== 'AbortError') { console.error(e); toast('Teilen nicht möglich – bitte «Herunterladen» verwenden.'); }
-  }
-}
-
-function onDownload() {
-  if (lastPdf) downloadBlob(lastPdf.blob, lastPdf.name);
-}
-
-function onPreview() {
-  if (!lastPdf) return;
-  const url = URL.createObjectURL(lastPdf.blob);
-  window.open(url, '_blank');
-  setTimeout(() => URL.revokeObjectURL(url), 120000);
-}
-
 /* ---------- Presets ---------- */
 // Preset = { id, name, values: { feldId: wert, feldId_andere: text }, updated }
 let presets = [];
@@ -1055,7 +1005,7 @@ function downloadBlob(blob, name) {
 function openNewDialog() {
   const sel = $('newPreset');
   sel.innerHTML = '';
-  sel.append(el('option', { value: '__keep' }, 'Projektdaten aus aktuellem Protokoll'));
+  sel.append(el('option', { value: '__keep' }, 'Projektdaten aus aktueller Begehung'));
   sel.append(el('option', { value: '__none' }, 'Leer (nur Name/Kürzel)'));
   presets.forEach(p => sel.append(el('option', { value: p.id }, 'Preset: ' + p.name)));
   $('dlgNew').showModal();
@@ -1063,20 +1013,14 @@ function openNewDialog() {
 
 /* ---------- Start ---------- */
 async function init() {
-  try { const d = await DB.get('draft'); state = d && d.values ? d : freshState(false); }
-  catch { state = freshState(false); toast('Lokaler Speicher nicht verfügbar – Entwürfe werden nicht gesichert.'); }
-  state.photos ||= {};
-  state.gis ||= {};
-  state.maengel ||= [];
-  state.nrel ||= {};
-  state.id ||= uid(); // Protokoll-ID für den CSV-Export
-  migrateState(state);
+  try { await openInitial(); }
+  catch (e) { console.error(e); state = freshState(false); toast('Lokaler Speicher nicht verfügbar – Begehungen werden nicht gesichert.'); }
   await loadPresets();
   loadPdfLogo();
   document.getElementById('appVersion').textContent = 'App-Version ' + APP_VERSION;
   render();
   setSaveState('');
-  initCsv();
+  initArchive();
   $('mgSave').onclick = saveMangel;
   $('mgDelete').onclick = deleteMangel;
   $('mgCancel').onclick = () => $('dlgMangel').close();
@@ -1096,22 +1040,19 @@ async function init() {
   $('btnPresetSaveOk').onclick = savePreset;
   $('btnPresetSaveCancel').onclick = () => $('dlgPresetSave').close();
 
-  document.getElementById('btnPdf').onclick = onPdf;
-  document.getElementById('btnShare').onclick = onShare;
-  document.getElementById('btnDownload').onclick = onDownload;
-  document.getElementById('btnPreview').onclick = onPreview;
-  document.getElementById('btnClosePdf').onclick = () => document.getElementById('dlgPdf').close();
-  $('btnNew').onclick = openNewDialog;
   $('btnNewCancel').onclick = () => $('dlgNew').close();
-  $('btnNewOk').onclick = () => {
+  $('btnNewOk').onclick = async () => {
     const choice = $('newPreset').value;
+    flushSave(); await saveCurrent(); // bisherige Begehung bleibt im Archiv (ausser sie ist leer)
+    const prev = state;
     state = freshState(choice === '__keep');
+    await dropIfEmpty(prev);
     const p = presets.find(x => x.id === choice);
     if (p) applyPreset(p);
     $('dlgNew').close();
-    render(); flushSave(); window.scrollTo(0, 0);
+    render(); await saveCurrent(); window.scrollTo(0, 0); updateSaveIndicator();
     autoWeather();
-    toast(p ? `Neues Protokoll mit Preset «${p.name}».` : 'Neues Protokoll gestartet.');
+    toast(p ? `Neue Begehung mit Preset «${p.name}».` : 'Neue Begehung gestartet.');
   };
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

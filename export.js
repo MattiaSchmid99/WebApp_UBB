@@ -117,49 +117,16 @@ function mergeCsv(oldRows, rec) {
   return { rows: [head, ...body], replaced, count: body.length };
 }
 
-/* ---------- Ablauf ---------- */
-let lastCsv = null;
-function csvFileName() {
-  const part = s => clean(s || '').trim().replace(/[\\/:*?"<>|.,;]+/g, ' ').replace(/\s+/g, '-').slice(0, 40);
-  return `UBB-Begehungen_${part(state.values.projekt) || 'Projekt'}.csv`;
-}
-function showCsvResult(text, name, info) {
-  const file = new File([text], name, { type: 'text/csv' });
-  lastCsv = { file, name };
-  $('csvName').textContent = name;
-  $('csvInfo').textContent = info;
-  const canShare = !!(navigator.canShare && navigator.canShare({ files: [file] }));
-  $('csvShare').style.display = canShare ? '' : 'none';
-  $('dlgCsv').close();
-  $('dlgCsvDone').showModal();
-}
-function csvNew() {
-  const rec = csvRecord();
-  showCsvResult(toCsv([rec.map(r => r[0]), rec.map(r => r[1])], ';'), csvFileName(),
-    'Neue Sammeltabelle mit dieser Begehung. In OneDrive im Projektordner speichern; bei den nächsten Begehungen «Bestehende CSV-Datei ergänzen» wählen.');
-}
+/* ---------- Bestehende Sammel-CSV ergänzen ---------- */
+// liefert { text, name, info } oder null
 async function csvAppend(file) {
   let text;
-  try { text = decodeCsv(await file.arrayBuffer()); } catch { toast('Datei konnte nicht gelesen werden.'); return; }
+  try { text = decodeCsv(await file.arrayBuffer()); } catch { toast('Datei konnte nicht gelesen werden.'); return null; }
   const sep = detectSep(text);
   const oldRows = parseCsvText(text, sep);
   if (oldRows.length && !oldRows[0].includes(CSV_ID) &&
-      !confirm('Diese Datei stammt nicht aus der UBB-App (Spalte «Protokoll-ID» fehlt). Trotzdem ergänzen?')) return;
+      !confirm('Diese Datei stammt nicht aus der UBB-App (Spalte «Protokoll-ID» fehlt). Trotzdem ergänzen?')) return null;
   const { rows, replaced, count } = mergeCsv(oldRows, csvRecord());
-  showCsvResult(toCsv(rows, sep), file.name,
-    `${count} Begehung${count === 1 ? '' : 'en'} in der Datei – diese Begehung wurde ${replaced ? 'aktualisiert (war schon enthalten)' : 'als neue Zeile angehängt'}. Unter dem gleichen Namen in OneDrive speichern und die alte Datei ersetzen.`);
-}
-
-function initCsv() {
-  $('btnCsv').onclick = () => checkRequired(() => $('dlgCsv').showModal());
-  $('csvNew').onclick = csvNew;
-  $('csvAppend').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) csvAppend(f); };
-  $('csvCancel').onclick = () => $('dlgCsv').close();
-  $('csvClose').onclick = () => $('dlgCsvDone').close();
-  $('csvDownload').onclick = () => lastCsv && downloadBlob(lastCsv.file, lastCsv.name);
-  $('csvShare').onclick = async () => {
-    if (!lastCsv) return;
-    try { await navigator.share({ files: [lastCsv.file], title: lastCsv.name }); }
-    catch (e) { if (e.name !== 'AbortError') { toast('Teilen nicht möglich – bitte «Herunterladen» verwenden.'); } }
-  };
+  return { text: toCsv(rows, sep), name: file.name,
+    info: `${count} Begehung${count === 1 ? '' : 'en'}, diese ${replaced ? 'aktualisiert' : 'angehängt'}; unter gleichem Namen speichern` };
 }
