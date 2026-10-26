@@ -142,12 +142,10 @@ const SCHEMA = [
   },
   {
     id: 'org', title: 'Umweltgefährdende Organismen', fields: [
-      { id: 'org_biotope', label: 'Werden schützenswerte Biotope / Naturschutzgebiete beachtet?', type: 'radio', options: JNR },
       { id: 'org_neophyten', label: 'Gibt es Neophyten in oder rund um den Perimeter?', type: 'radio', options: JNR },
-      { id: 'org_arten', label: 'Welche Neophyten-Arten?', type: 'multi', options: ['Kanadische Goldrute', 'Sommerflieder', 'Berufkraut', 'Armenische Brombeere', 'Götterbaum', 'Südafrikanisches Greiskraut', 'Japanischer Knöterich'], other: true, showIf: { f: 'org_neophyten', v: 'Ja' } },
+      { id: 'org_bestaende', label: 'Bestände invasiver Neophyten (FrSV Anhang 2)', hint: 'Pro Bestand: Art, Foto, Standort und ob er bekämpft werden muss. Zu bekämpfende Bestände erscheinen in der Massnahmenliste.', type: 'neophyten', showIf: { f: 'org_neophyten', v: 'Ja' } },
       { id: 'org_tiere', label: 'Gibt es Hinweise auf gebietsfremde Tierarten?', type: 'radio', options: JNR },
       { id: 'org_tiereWelche', label: 'Welche Tierarten?', type: 'text', showIf: { f: 'org_tiere', v: 'Ja' } },
-      { id: 'org_fallen', label: 'Gibt es offene Gruben oder Schächte, welche als Tierfallen dienen können?', type: 'radio', options: JNR },
       { id: 'org_bem', label: 'Bemerkungen', type: 'textarea' },
     ]
   },
@@ -163,9 +161,10 @@ const SCHEMA = [
   },
   {
     id: 'ffl', title: 'Flora, Fauna, Lebensräume', fields: [
+      { id: 'org_biotope', label: 'Werden schützenswerte Biotope / Naturschutzgebiete beachtet?', type: 'radio', options: JNR, csvArea: 'Umweltgefährdende Organismen' },
       { id: 'ffl_amphibien', label: 'Werden Amphibienschutzmassnahmen eingehalten?', type: 'radio', options: JNR },
       { id: 'ffl_ruhezeiten', label: 'Werden Ruhezeiten (Winterschlaf, Brutzeit, etc.) eingehalten?', type: 'radio', options: JNR },
-      { id: 'ffl_fallen', label: 'Bestehen Fallen für Kleintiere?', hint: 'z.B. offene Schächte, Gruben...', type: 'radio', options: JNR },
+      { id: 'org_fallen', label: 'Gibt es offene Gruben oder Schächte, welche als Tierfallen dienen können?', hint: 'Fallen für Kleintiere', type: 'radio', options: JNR, csvArea: 'Umweltgefährdende Organismen' },
       { id: 'ffl_bem', label: 'Bemerkungen', type: 'textarea' },
     ]
   },
@@ -208,6 +207,37 @@ const SCHEMA = [
     ]
   },
 ];
+
+// Invasive gebietsfremde Pflanzen gemäss Freisetzungsverordnung (FrSV, SR 814.911), Anhang 2, Fassung ab 1.9.2024
+// 2.1: Umgang in der Umwelt verboten · 2.2: Inverkehrbringen verboten
+const NEOPHYTEN = [
+  ...[['Ailanthus altissima', 'Götterbaum'], ['Ambrosia spp.', 'Ambrosien, Traubenkräuter'], ['Asclepias syriaca', 'Syrische Seidenpflanze'],
+    ['Cabomba caroliniana', 'Karolina-Haarnixe'], ['Celastrus orbiculatus', 'Rundblättriger Baumwürger'], ['Crassula helmsii', 'Nadelkraut'],
+    ['Elodea spp. (E. canadensis, E. densa, E. nuttallii)', 'Wasserpest'], ['Heracleum mantegazzianum', 'Riesenbärenklau'], ['Humulus japonicus', 'Japanischer Hopfen'],
+    ['Hydrocotyle ranunculoides', 'Grosser Wassernabel'], ['Impatiens glandulifera', 'Drüsiges Springkraut'], ['Lagarosiphon major', 'Schmalrohr'],
+    ['Ludwigia spp.', 'Südamerikanische Heusenkräuter inkl. Hybride'], ['Myriophyllum spp. (M. aquaticum, M. heterophyllum)', 'Tausendblätter (gebietsfremde)'],
+    ['Pueraria lobata', 'Kopoubohne'], ['Reynoutria spp. (Fallopia spp.)', 'Asiatische Knöteriche inkl. Hybride'], ['Rhus typhina', 'Essigbaum'],
+    ['Salvinia molesta', 'Lästiger Schwimmfarn'], ['Senecio inaequidens', 'Schmalblättriges Greiskraut'], ['Sicyos angulatus', 'Haargurke'],
+    ['Solidago spp. (ohne S. virgaurea)', 'Amerikanische Goldruten inkl. Hybride'], ['Toxicodendron radicans', 'Kletternder Giftsumach'],
+  ].map(([sci, de]) => ({ anh: '2.1', sci, de })),
+  ...[['Acacia dealbata', 'Falsche Mimose'], ['Amorpha fruticosa', 'Bastardindigo'], ['Artemisia verlotiorum', 'Verlotscher Beifuss'],
+    ['Aster novi-belgii aggr.', 'Neubelgische Aster'], ['Azolla filiculoides', 'Grosser Algenfarn'], ['Broussonetia papyrifera', 'Papiermaulbeerbaum'],
+    ['Buddleja davidii', 'Schmetterlingsstrauch, Sommerflieder'], ['Bunias orientalis', 'Glattes Zackenschötchen'], ['Cornus sericea', 'Seidiger Hornstrauch'],
+    ['Cotoneaster horizontalis', 'Korallenstrauch'], ['Echinocystis lobata', 'Stachelgurke'], ['Erigeron annuus', 'Einjähriges Berufkraut'],
+    ['Galega officinalis', 'Geissraute'], ['Glyceria striata', 'Gestreiftes Süssgras'], ['Lonicera henryi', 'Henrys Geissblatt'],
+    ['Lonicera japonica', 'Japanisches Geissblatt'], ['Lupinus polyphyllus', 'Vielblättrige Lupine'], ['Oenanthe javanica', 'Wasserfenchel'],
+    ['Parthenocissus quinquefolia aggr.', 'Jungfernrebe'], ['Paulownia tomentosa', 'Blauglockenbaum'], ['Pennisetum setaceum', 'Afrikanisches Lampenputzergras'],
+    ['Phyllostachys aurea', 'Gold-Bambus'], ['Prunus laurocerasus', 'Kirschlorbeer'], ['Prunus serotina', 'Herbst-Traubenkirsche'],
+    ['Pseudosasa japonica', 'Japanischer Bambus'], ['Rubus armeniacus', 'Armenische Brombeere'], ['Rubus phoenicolasius', 'Rotborstige Himbeere'],
+    ['Sagittaria latifolia', 'Breitblättriges Pfeilkraut'], ['Sedum spurium', 'Kaukasus-Fettkraut'], ['Sedum stoloniferum', 'Ausläuferbildendes Fettkraut'],
+    ['Trachycarpus fortunei', 'Chinesische Hanfpalme'],
+  ].map(([sci, de]) => ({ anh: '2.2', sci, de })),
+];
+const NEO_ANH = { '2.1': 'Anhang 2.1 – Umgang verboten', '2.2': 'Anhang 2.2 – Inverkehrbringen verboten' };
+const neoBySci = sci => NEOPHYTEN.find(n => n.sci === sci);
+// frühere Auswahlliste «Welche Neophyten-Arten?» → FrSV-Art
+const NEO_OLD = { 'Kanadische Goldrute': 'Solidago spp. (ohne S. virgaurea)', 'Sommerflieder': 'Buddleja davidii', 'Berufkraut': 'Erigeron annuus',
+  'Armenische Brombeere': 'Rubus armeniacus', 'Götterbaum': 'Ailanthus altissima', 'Südafrikanisches Greiskraut': 'Senecio inaequidens', 'Japanischer Knöterich': 'Reynoutria spp. (Fallopia spp.)' };
 
 // Probentypen Materialbeprobung
 const PROBEN_TYPEN = ['Aushub', 'Ausbruch', 'Unterboden', 'Oberboden', 'Baustoffe', 'Ausbruchasphalt', 'Baustellenabwasser'];

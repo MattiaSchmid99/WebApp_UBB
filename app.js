@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '10'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
+const APP_VERSION = '11'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
 
 /* ---------- Speicher (IndexedDB, Fallback: nur im Arbeitsspeicher) ---------- */
 const DB = (() => {
@@ -76,6 +76,17 @@ function migrateState(st) {
   migrateValues(st.values);
   st.maengel.forEach(m => { if (SECTION_MOVED[m.section]) m.section = SECTION_MOVED[m.section]; });
   for (const k of Object.keys(st.nrel)) if (!SCHEMA.some(s => s.id === k)) delete st.nrel[k];
+  const v = st.values;
+  // frühere Mehrfachauswahl «Welche Neophyten-Arten?» → Bestände (ohne Foto/Standort)
+  if ((Array.isArray(v.org_arten) || v.org_arten_andere) && !Array.isArray(v.org_bestaende)) {
+    v.org_bestaende = [...(v.org_arten || []).filter(a => NEO_OLD[a]).map(a => ({ art: NEO_OLD[a] })),
+      ...(v.org_arten_andere ? [{ art: '__andere', artText: v.org_arten_andere }] : [])]
+      .map(b => ({ id: uid(), artText: '', photos: [], E: null, N: null, acc: null, bekaempfen: '', verantwortlich: '', frist: '', bem: '', ...b }));
+  }
+  delete v.org_arten; delete v.org_arten_andere;
+  // «Bestehen Fallen für Kleintiere?» ist in «offene Gruben oder Schächte» aufgegangen
+  if (v.ffl_fallen && !v.org_fallen) v.org_fallen = v.ffl_fallen;
+  delete v.ffl_fallen;
 }
 
 let saveTimer = null;
@@ -133,6 +144,7 @@ function isFilled(f) {
     case 'auflagen': return Array.isArray(v) && v.some(a => String(a.text || '').trim());
     case 'mlist': return false;
     case 'proben': return Array.isArray(v) && v.length > 0;
+    case 'neophyten': return Array.isArray(v) && v.some(b => b.art);
     case 'multi': return (Array.isArray(v) && v.length > 0) || !!(state.values[f.id + '_andere'] || '').trim();
     case 'radio': return (v != null && v !== '') || !!(f.other && (state.values[f.id + '_andere'] || '').trim());
     default: return v != null && String(v).trim() !== '';
@@ -163,7 +175,8 @@ function afterChange() {
     const nr = !!state.nrel[s.id];
     const b = document.getElementById('b_' + s.id);
     const np = s.id === 'proben' ? (state.values.proben_liste || []).length : 0;
-    b.textContent = s.id === 'maengel' ? (mc ? `${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}` : 'keine')
+    const nn = s.id === 'maengel' ? neoToFight().length : 0;
+    b.textContent = s.id === 'maengel' ? ([mc && `${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}`, nn && `${nn} Neophyten`].filter(Boolean).join(' · ') || 'keine')
       : np && !nr ? `${np} ${np === 1 ? 'Probe' : 'Proben'}` + (mc ? ` · ${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}` : '')
       : nr ? 'n. rel.' : (n ? `${n} ausgefüllt` : 'leer') + (mc ? ` · ${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}` : '');
     b.classList.toggle('on', n > 0 || nr);
@@ -274,6 +287,8 @@ function renderField(f) {
     w.append(renderAuflagen(f));
   } else if (f.type === 'proben') {
     w.append(renderProben(f));
+  } else if (f.type === 'neophyten') {
+    w.append(labelEl(f), renderNeophyten(f));
   } else if (f.type === 'mlist') {
     w.append(labelEl(f), el('div', { class: 'mlist', id: 'mlAll' }));
   }
@@ -402,6 +417,7 @@ function valueText(f) {
   if (f.type === 'datetime') return fmtDateTime(v);
   if (f.type === 'auflagen') { const n = (v || []).length; return `${n} Auflage${n === 1 ? '' : 'n'}`; }
   if (f.type === 'proben') { const n = (v || []).length; return `${n} Probe${n === 1 ? '' : 'n'}`; }
+  if (f.type === 'neophyten') { const n = (v || []).length; return `${n} ${n === 1 ? 'Bestand' : 'Bestände'}`; }
   if (f.ph) {
     const n = parseFloat(String(v).replace(',', '.'));
     return String(v) + (!isNaN(n) && (n < 6.5 || n > 9) ? '  (ausserhalb Soll 6.5 - 9.0)' : '');
@@ -613,6 +629,20 @@ function buildPdf() {
     if (ph.length) photos(ph);
   }
 
+  // Neophyten-Bestände: Tabelle, danach Fotos
+  const neoPos = b => b.E ? `E ${Math.round(b.E).toLocaleString('de-CH')}\nN ${Math.round(b.N).toLocaleString('de-CH')}` + (b.acc ? `\n+/-${Math.round(b.acc)} m` : '') : '-';
+  function neoTable(list) {
+    list = list.filter(b => b.art);
+    table([{ t: 'Nr.', w: 10 }, { t: 'Art', w: 52 }, { t: 'FrSV', w: 14 }, { t: 'Standort (LV95)', w: 29 }, { t: 'Bekämpfen', w: 22 }, { t: 'Bemerkung', w: 53 }],
+      list.map(b => {
+        const i = state.values.org_bestaende.indexOf(b);
+        const bk = b.bekaempfen === 'Ja' ? ['Ja', b.verantwortlich, b.frist && 'Frist ' + fmtDate(b.frist)].filter(Boolean).join('\n') : (b.bekaempfen || '-');
+        return { cells: [`N${i + 1}`, neoName(b), neoAnh(b) ? 'Anh. ' + neoAnh(b) : '-', neoPos(b), bk, b.bem || ''], warn: b.bekaempfen === 'Ja' ? [4] : [] };
+      }));
+    const ph = list.flatMap(b => (b.photos || []).map((x, k) => ({ ...x, id: x.id || b.id + k, caption: `N${state.values.org_bestaende.indexOf(b) + 1}: ${neoName(b)}` })));
+    if (ph.length) photos(ph);
+  }
+
   // Tabelle mit Kopfzeile; Kopf wird bei Seitenumbruch wiederholt
   function table(cols, rows) {
     const FS2 = 9, LH2 = 4.1, PAD = 2;
@@ -671,8 +701,12 @@ function buildPdf() {
   if (!anyContent) return null;
   // Mängel und Massnahmen ganz oben
   sectionHead('Mängel und Massnahmen');
-  if (ORD.length || openAuflagen.length) {
-    table(MCOLS, [...mangelRows(ORD), ...openAuflagen.map(o => ({
+  const NEO = neoToFight();
+  if (ORD.length || openAuflagen.length || NEO.length) {
+    table(MCOLS, [...mangelRows(ORD), ...NEO.map(b => ({
+      cells: [`N${state.values.org_bestaende.indexOf(b) + 1}`, 'Invasive Neophyten' + (neoAnh(b) ? ` (FrSV Anh. ${neoAnh(b)})` : ''),
+        `Bestand bekämpfen: ${neoName(b)}` + (b.E ? `\nStandort: E ${Math.round(b.E).toLocaleString('de-CH')} / N ${Math.round(b.N).toLocaleString('de-CH')}` : '') + (b.bem ? '\n' + b.bem : ''),
+        b.verantwortlich || '-', b.frist ? fmtDate(b.frist) : '-'], warn: [] })), ...openAuflagen.map(o => ({
       cells: [o.nr, `${o.s.title}: Auflage (${o.a.herkunft})`, 'Auflage nicht erfüllt: ' + o.a.text + (o.a.bemerkung ? '\nBemerkung: ' + o.a.bemerkung : ''), '-', '-'],
       warn: [],
     }))]);
@@ -683,6 +717,7 @@ function buildPdf() {
   row('Gesamtbeurteilung', gb || '-', gb && gb !== 'In Ordnung');
   if (v.gesamt_eindruck) row('Eindruck der Baustelle', v.gesamt_eindruck);
   if (v.bericht_vorfaelle === 'Ja') row('Umweltvorfall', 'Ja' + (v.vorfall_was ? ': ' + v.vorfall_was.split('\n')[0] : '') + ' (Details unter Berichterstattung)', true);
+  if (NEO.length) row('Neophyten zu bekämpfen', `${NEO.length} ${NEO.length === 1 ? 'Bestand' : 'Bestände'} (siehe Massnahmenliste)`, true);
   if (nrelList.length) row('Nicht relevante Bereiche', nrelList.join('; '));
   if (v.gesamt_massnahmen) row('Weitere Massnahmen', v.gesamt_massnahmen);
   if (v.bericht_naechste) row('Nächste Begehung', fmtDate(v.bericht_naechste));
@@ -710,6 +745,7 @@ function buildPdf() {
     for (const f of items) {
       if (f.type === 'sub') (f.area ? areaHead : subHead)(f.label);
       else if (f.type === 'proben') probenTable(state.values[f.id]);
+      else if (f.type === 'neophyten') neoTable(state.values[f.id]);
       else if (f.type === 'photos') photos(state.photos[f.id]);
       else if (f.type === 'gis') gisMaps(state.gis[f.id]);
       else {
@@ -842,7 +878,7 @@ async function storePresets() {
 }
 
 // Felder, die in einem Preset vorkommen dürfen
-const presetable = f => !['photos', 'sub', 'gis', 'signature', 'mlist', 'proben'].includes(f.type) && f.id !== 'datum';
+const presetable = f => !['photos', 'sub', 'gis', 'signature', 'mlist', 'proben', 'neophyten'].includes(f.type) && f.id !== 'datum';
 // Werte eines Feldes inkl. «Andere»-Text
 function fieldValues(src, id) {
   const out = {};

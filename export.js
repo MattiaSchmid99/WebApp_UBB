@@ -25,8 +25,16 @@ function csvRecord() {
     for (const f of s.fields) {
       if (f.type === 'sub') { if (f.area) area = f.area; continue; }
       if (CSV_SKIP_TYPES.includes(f.type)) continue;
-      const pre = f.type === 'auflagen' ? s.title : (area || s.title); // Auflagen gelten für den ganzen Bereich
+      // Auflagen gelten für den ganzen Bereich; verschobene Fragen behalten ihre bisherige Spalte (csvArea)
+      const pre = f.csvArea || (f.type === 'auflagen' ? s.title : (area || s.title));
       const ok = !state.nrel[s.id] && isVisible(f) && isFilled(f);
+      if (f.type === 'neophyten') {
+        const bl = ok ? state.values[f.id].filter(b => b.art) : [];
+        rec.push([`${pre}: Neophyten-Bestände`, bl.map(b => [`N${state.values[f.id].indexOf(b) + 1} ${neoName(b)}${neoAnh(b) ? ' [FrSV Anh. ' + neoAnh(b) + ']' : ''}`,
+          b.E && `E ${Math.round(b.E)} / N ${Math.round(b.N)}`, `bekämpfen: ${b.bekaempfen || '-'}`, b.verantwortlich, b.frist && 'Frist ' + fmtDate(b.frist), b.bem].filter(Boolean).join(', ')).join(' | ')]);
+        rec.push([`${pre}: Neophyten zu bekämpfen`, String(bl.filter(b => b.bekaempfen === 'Ja').length)]);
+        continue;
+      }
       if (f.type === 'proben') {
         const pl = ok ? state.values[f.id] : [];
         rec.push([`${pre}: Anzahl Proben`, String(pl.length)]);
@@ -46,7 +54,8 @@ function csvRecord() {
     'Mangel: ' + m.text, m.massnahme && 'Massnahme: ' + m.massnahme, m.verantwortlich && 'Verantwortlich: ' + m.verantwortlich,
     m.frist && 'Frist: ' + fmtDate(m.frist)].filter(Boolean).join('; ')).join(' | ')]);
   const nPhotos = Object.values(state.photos).reduce((n, l) => n + (l || []).length, 0) + state.maengel.reduce((n, m) => n + (m.photos || []).length, 0)
-    + (state.values.proben_liste || []).reduce((n, p) => n + (p.photos || []).length, 0);
+    + (state.values.proben_liste || []).reduce((n, p) => n + (p.photos || []).length, 0)
+    + (state.values.org_bestaende || []).reduce((n, b) => n + (b.photos || []).length, 0);
   rec.push(['Fotos: Anzahl', String(nPhotos)]);
   const maps = Object.values(state.gis || {}).flat();
   rec.push(['GIS-Karten', maps.map((m, i) => {

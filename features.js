@@ -116,7 +116,16 @@ function renderAllMaengelLists() {
   const all = document.getElementById('mlAll');
   if (all) {
     all.innerHTML = '';
-    if (!ord.length) all.append(el('div', { class: 'hint' }, 'Keine Mängel erfasst. Mängel bei der jeweiligen Frage mit «+ Mangel» erfassen.'));
+    const neo = neoToFight();
+    if (!ord.length && !neo.length) all.append(el('div', { class: 'hint' }, 'Keine Mängel erfasst. Mängel bei der jeweiligen Frage mit «+ Mangel» erfassen.'));
+    // Zu bekämpfende Neophyten-Bestände (aus «Umweltgefährdende Organismen»)
+    neo.forEach(b => {
+      const i = state.values.org_bestaende.indexOf(b);
+      all.append(el('button', { type: 'button', class: 'mcard', onclick: () => {
+        const s = document.getElementById('s_org'); s.open = true; document.getElementById('f_org_bestaende').scrollIntoView({ behavior: 'smooth' }); } },
+        el('small', { class: 'sec' }, 'Neophyten bekämpfen'), el('b', {}, `N${i + 1} `), neoName(b),
+        el('small', {}, [b.verantwortlich, b.frist && 'Frist ' + fmtDate(b.frist)].filter(Boolean).join(' · ') || 'Bekämpfen')));
+    });
     ord.forEach((m, i) => {
       const sec = SCHEMA.find(s => s.id === m.section);
       const c = mangelCard(m, 'M' + (i + 1));
@@ -462,3 +471,119 @@ function renderProben(f) {
   draw();
   return box;
 }
+
+/* ---------- Standort per GPS (für Neophyten-Bestände) ---------- */
+// Zeigt Position, «Position neu bestimmen» und manuelle LV95-Eingabe; schreibt E, N, acc, posSrc in obj
+function positionWidget(obj, onChange) {
+  const posEl = el('div', { class: 'pos' });
+  const show = () => {
+    posEl.innerHTML = '';
+    if (obj.E) {
+      posEl.className = 'pos' + (obj.acc > 30 ? ' warn' : '');
+      posEl.append(el('b', {}, 'Standort: '), `E ${Math.round(obj.E).toLocaleString('de-CH')} / N ${Math.round(obj.N).toLocaleString('de-CH')} (LV95)`, el('br'),
+        obj.posSrc === 'GPS' ? `GPS, Genauigkeit ±${Math.round(obj.acc)} m` : 'manuell eingegeben');
+    } else { posEl.className = 'pos warn'; posEl.textContent = obj.posErr ? `Kein Standort: ${obj.posErr}` : 'Noch kein Standort.'; }
+  };
+  const btn = el('button', { type: 'button', class: 'btn sm' }, 'Standort per GPS bestimmen');
+  const locate = async () => {
+    posEl.className = 'pos'; posEl.textContent = 'Standort wird per GPS bestimmt …'; btn.disabled = true;
+    try {
+      const g = await getGpsPosition();
+      if (!inSwitzerland(g.E, g.N)) throw new Error('Position liegt ausserhalb der Schweiz.');
+      Object.assign(obj, { E: g.E, N: g.N, acc: g.acc, posSrc: 'GPS' }); delete obj.posErr; onChange();
+    } catch (e) { obj.posErr = e.message || 'Position nicht verfügbar.'; }
+    btn.disabled = false; show();
+  };
+  btn.onclick = locate;
+  const manE = el('input', { type: 'text', inputmode: 'decimal', placeholder: "E, z.B. 2'683'250" });
+  const manN = el('input', { type: 'text', inputmode: 'decimal', placeholder: "N, z.B. 1'247'930" });
+  manE.oninput = manN.oninput = () => {
+    const E = parseCoord(manE.value), N = parseCoord(manN.value);
+    if (E && N && inSwitzerland(E, N)) { Object.assign(obj, { E, N, acc: null, posSrc: 'manuell' }); delete obj.posErr; show(); onChange(); }
+  };
+  show();
+  return { nodes: [posEl, el('div', { class: 'row2' }, btn),
+    el('details', { class: 'manual' }, el('summary', {}, 'Koordinaten manuell eingeben (LV95)'), el('div', { class: 'row2' }, manE, manN))], locate };
+}
+
+/* ---------- Invasive Neophyten (FrSV Anhang 2) ---------- */
+const neoName = b => b.art === '__andere' ? (b.artText || 'Andere Art') : (neoBySci(b.art) ? `${neoBySci(b.art).de} (${b.art})` : (b.art || '–'));
+const neoAnh = b => (neoBySci(b.art) || {}).anh || '';
+
+function renderNeophyten(f) {
+  const list = () => (state.values[f.id] ||= []);
+  const box = el('div', { class: 'proben' });
+  const changed = () => afterChange();
+
+  function card(b, i) {
+    const sel = el('select', { onchange: e => { b.art = e.target.value; other.hidden = b.art !== '__andere'; anh.textContent = neoAnh(b) ? NEO_ANH[neoAnh(b)] : ''; changed(); } },
+      el('option', { value: '' }, '– Art wählen –'),
+      ['2.1', '2.2'].map(a => el('optgroup', { label: NEO_ANH[a] },
+        NEOPHYTEN.filter(n => n.anh === a).map(n => el('option', { value: n.sci, selected: b.art === n.sci }, `${n.de} – ${n.sci}`)))),
+      el('optgroup', { label: 'Weitere' }, el('option', { value: '__andere', selected: b.art === '__andere' }, 'Andere Art (nicht in Anhang 2)')));
+    const other = el('input', { type: 'text', placeholder: 'Art, z.B. Robinie', value: b.artText || '', oninput: e => { b.artText = e.target.value; changed(); } });
+    other.hidden = b.art !== '__andere';
+    const anh = el('div', { class: 'hint' }, neoAnh(b) ? NEO_ANH[neoAnh(b)] : '');
+    const pw = positionWidget(b, changed);
+    const phBox = el('div', { class: 'photos' });
+    const drawPh = () => {
+      phBox.innerHTML = '';
+      (b.photos ||= []).forEach(x => phBox.append(el('div', { class: 'ph' }, el('img', { src: x.data, alt: 'Foto Bestand' }),
+        el('button', { type: 'button', class: 'del', 'aria-label': 'Foto löschen', onclick: () => { if (!confirm('Foto löschen?')) return; b.photos = b.photos.filter(y => y !== x); drawPh(); changed(); } }, '×'))));
+      phBox.append(...photoAddTiles(async files => {
+        for (const file of files) { try { b.photos.push(await compressImage(file)); } catch { toast('Foto konnte nicht geladen werden.'); } }
+        drawPh(); changed();
+      }));
+    };
+    drawPh();
+    const mass = el('div', { class: 'neo-mass' });
+    const drawMass = () => {
+      mass.innerHTML = '';
+      if (b.bekaempfen !== 'Ja') return;
+      mass.append(
+        el('div', { class: 'row2' },
+          el('div', {}, el('div', { class: 'plab' }, 'Verantwortlich'), el('input', { type: 'text', value: b.verantwortlich || '', placeholder: 'z.B. Unternehmer', oninput: e => { b.verantwortlich = e.target.value; changed(); } })),
+          el('div', {}, el('div', { class: 'plab' }, 'Frist'), el('input', { type: 'date', value: b.frist || '', oninput: e => { b.frist = e.target.value; changed(); } }))));
+    };
+    const chips = el('div', { class: 'chips' }, ['Ja', 'Nein'].map(o => el('button', {
+      type: 'button', class: 'chip', 'aria-pressed': b.bekaempfen === o ? 'true' : 'false',
+      onclick: e => { b.bekaempfen = b.bekaempfen === o ? '' : o; e.currentTarget.parentNode.querySelectorAll('.chip').forEach(c => c.setAttribute('aria-pressed', c.textContent === b.bekaempfen ? 'true' : 'false')); drawMass(); changed(); },
+    }, o)));
+    drawMass();
+    const bem = el('textarea', { rows: 2, placeholder: 'Bemerkung, z.B. Fläche, Anzahl Pflanzen, Bekämpfungsmethode', oninput: e => { b.bem = e.target.value; autosize(e.target); changed(); } });
+    bem.value = b.bem || '';
+    const lab = t => el('div', { class: 'plab' }, t);
+    const c = el('div', { class: 'probe' },
+      el('div', { class: 'aufl-head' }, el('b', {}, `N${i + 1}`), el('span', { style: 'flex:1' }),
+        el('button', { type: 'button', class: 'btn sm', 'aria-label': 'Bestand löschen', onclick: () => {
+          if (!confirm(`Bestand N${i + 1} löschen?`)) return;
+          state.values[f.id] = list().filter(x => x !== b); draw(); changed();
+        } }, '×')),
+      lab('Art'), sel, other, anh,
+      lab('Foto'), phBox,
+      lab('Standort'), ...pw.nodes,
+      lab('Massnahme: Bekämpfen?'), chips, mass,
+      lab('Bemerkung'), bem);
+    c._locate = pw.locate;
+    return c;
+  }
+
+  function draw() {
+    box.innerHTML = '';
+    list().forEach((b, i) => box.append(card(b, i)));
+    box.append(el('button', {
+      type: 'button', class: 'btn primary', style: 'max-width:none;width:100%', onclick: () => {
+        list().push({ id: uid(), art: '', artText: '', photos: [], E: null, N: null, acc: null, bekaempfen: '', verantwortlich: '', frist: '', bem: '' });
+        draw(); changed();
+        const cards = box.querySelectorAll('.probe'), c = cards[cards.length - 1];
+        c.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        c._locate(); // Standort automatisch per GPS
+      },
+    }, '+ Bestand hinzufügen'));
+  }
+  draw();
+  return box;
+}
+
+// Bestände, die bekämpft werden müssen (für Massnahmenliste)
+const neoToFight = () => state.values.org_neophyten !== 'Ja' || state.nrel.org ? [] : (state.values.org_bestaende || []).filter(b => b.bekaempfen === 'Ja' && b.art);
