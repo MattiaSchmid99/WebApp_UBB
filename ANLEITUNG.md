@@ -170,7 +170,7 @@ Hinweise:
 - GPS-Genauigkeit im Wald oder zwischen Gebäuden oft ±10–30 m. Für Waldabstände (2 m) ist die Karte nur ein Hinweis, keine Messung.
 - Die Amtliche Vermessung (Bodenbedeckung) ist nur bis ca. 1:10'000 lesbar.
 - Lädt ein kantonaler Dienst nicht (Meldung unter dem Knopf), erscheint nur Hintergrund und Standort. Grund ist meist, dass der Server die Übernahme ins Bild nicht erlaubt.
-- Die Layer stammen aus der «GIS Umweltübersicht» (Datei `gis-layers.js`): 31 Layer von Bund und geodienste.ch für alle Kantone, dazu 144 kantonale Layer (ohne Lärm, Luft, NIS und Naturgefahren). Der Kanton wird am Standort erkannt; seine Layer erscheinen dann in der Liste.
+- Die Layer stammen aus der «GIS Umweltübersicht» (Datei `gis-layers.js`), ab Version 18 reduziert auf: Planerischer Gewässerschutz, Gewässerraum, Fruchtfolgeflächen, Kataster der belasteten Standorte (Kantone und Bund), Amtliche Vermessung – Bodenbedeckung, Statische Waldgrenzen, Auengebiete, Hoch- und Flachmoore, Amphibienlaichgebiete, TWW (11 Layer für alle Kantone) sowie kantonal Waldareal, Archäologie, kantonale Naturschutz-Inventare und Prüfperimeter Bodenverschiebungen (88 Layer). Der Kanton wird am Standort erkannt; seine Layer erscheinen dann in der Liste.
 - Layerliste anpassen: `gis-layers.js`.
 
 ## 6. Logo
@@ -183,7 +183,7 @@ Hinweise:
 - **PDF-Layout:** Funktion `buildPdf` in `app.js`. Schrift Helvetica 10 pt (PDF-Standardschrift, entspricht Arial in Form und Laufweite).
 - **GIS-Layer:** `gis-layers.js`.
 - **SharePoint (`config.js`):** `tenantId`, `clientId` (aus der App-Registrierung der IT), `siteHost` (z.B. `firma.sharepoint.com`), `sitePath` (z.B. `/sites/UBB`), optional `library` (leer = Standard-Dokumentbibliothek), `rootFolder`, `listName` (leer = keine Liste). Die Werte sind keine Geheimnisse. Leer lassen = SharePoint aus.
-- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v17';` hochzählen (`ubb-v18` …), in `index.html` bei allen `<script src="…?v=17">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. Danach die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
+- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v18';` hochzählen (`ubb-v19` …), in `index.html` bei allen `<script src="…?v=18">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. Danach die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
 
 ## Dateien
 
