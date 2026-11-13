@@ -1,6 +1,6 @@
 'use strict';
 /* =====================================================================
-   Zusatzfunktionen: Abschnitt «n. rel.», Auflagen, Mängel/Massnahmenliste,
+   Zusatzfunktionen: Abschnitt «n. rel.», Auflagen, Pendenzen,
    Unterschrift, Wetter, Pflichtfelder. Nutzt state, el, uid, … aus app.js.
    ===================================================================== */
 
@@ -9,7 +9,7 @@ function toggleSectionNrel(s) {
   if (state.nrel[s.id]) delete state.nrel[s.id];
   else {
     const mc = state.maengel.filter(m => m.section === s.id).length;
-    if (mc && !confirm(`In diesem Abschnitt sind ${mc} Mängel erfasst. Trotzdem als nicht relevant markieren? Die Mängel bleiben in der Massnahmenliste.`)) return;
+    if (mc && !confirm(`In diesem Abschnitt ${mc === 1 ? 'ist 1 Pendenz' : `sind ${mc} Pendenzen`} erfasst. Trotzdem als nicht relevant markieren? Die Pendenzen bleiben in der Pendenzenliste.`)) return;
     state.nrel[s.id] = true;
   }
   afterChange();
@@ -61,7 +61,7 @@ function renderAuflagen(f) {
           el('button', {
             type: 'button', class: 'btn sm', 'aria-label': 'Auflage löschen', onclick: () => {
               const ms = state.maengel.filter(m => m.ref === a.id);
-              if (!confirm('Auflage löschen?' + (ms.length ? ` Die ${ms.length} zugehörigen Mängel werden ebenfalls gelöscht.` : ''))) return;
+              if (!confirm('Auflage löschen?' + (ms.length ? ` Die zugehörigen Pendenzen (${ms.length}) werden ebenfalls gelöscht.` : ''))) return;
               state.values[f.id] = list().filter(x => x !== a);
               state.maengel = state.maengel.filter(m => m.ref !== a.id);
               draw(); changed();
@@ -69,7 +69,7 @@ function renderAuflagen(f) {
           }, '×')),
         txt, chips, bem,
         el('div', { class: 'mrow' }, el('div', { class: 'mlist', id: 'ml_' + a.id }),
-          el('button', { type: 'button', class: 'mbtn', onclick: () => openMangel({ section: f.section, ref: a.id, refLabel: 'Auflage: ' + (a.text || '').slice(0, 80) }) }, '+ Mangel'))));
+          el('button', { type: 'button', class: 'mbtn', onclick: () => openMangel({ section: f.section, ref: a.id, refLabel: 'Auflage: ' + (a.text || '').slice(0, 80) }) }, '+ Pendenz'))));
       requestAnimationFrame(() => autosize(txt));
     });
     box.append(el('button', {
@@ -87,7 +87,7 @@ function renderAuflagen(f) {
   return det;
 }
 
-/* ---------- Mängel und Massnahmenliste ---------- */
+/* ---------- Pendenzen (intern: maengel) ---------- */
 // Reihenfolge wie im Formular: Abschnitt → Feld bzw. Auflage → Erfassung
 function orderedMaengel() {
   const out = [];
@@ -98,7 +98,7 @@ function orderedMaengel() {
   }
   return out;
 }
-const mangelNr = m => 'M' + (orderedMaengel().indexOf(m) + 1);
+const mangelNr = m => 'PD' + (orderedMaengel().indexOf(m) + 1);
 
 function mangelCard(m, nr) {
   const meta = [m.verantwortlich, m.frist && 'Frist ' + fmtDate(m.frist), m.photos?.length && `${m.photos.length} Foto${m.photos.length > 1 ? 's' : ''}`].filter(Boolean).join(' · ');
@@ -111,13 +111,13 @@ function renderAllMaengelLists() {
   document.querySelectorAll('.mlist[id^="ml_"]').forEach(box => {
     const ref = box.id.slice(3);
     box.innerHTML = '';
-    ord.forEach((m, i) => { if (m.ref === ref) box.append(mangelCard(m, 'M' + (i + 1))); });
+    ord.forEach((m, i) => { if (m.ref === ref) box.append(mangelCard(m, 'PD' + (i + 1))); });
   });
   const all = document.getElementById('mlAll');
   if (all) {
     all.innerHTML = '';
     const neo = neoToFight();
-    if (!ord.length && !neo.length) all.append(el('div', { class: 'hint' }, 'Keine Mängel erfasst. Mängel bei der jeweiligen Frage mit «+ Mangel» erfassen.'));
+    if (!ord.length && !neo.length) all.append(el('div', { class: 'hint' }, 'Keine neuen Pendenzen. Pendenzen bei der jeweiligen Frage mit «+ Pendenz» erfassen.'));
     // Zu bekämpfende Neophyten-Bestände (aus «Umweltgefährdende Organismen»)
     neo.forEach(b => {
       const i = state.values.org_bestaende.indexOf(b);
@@ -128,7 +128,7 @@ function renderAllMaengelLists() {
     });
     ord.forEach((m, i) => {
       const sec = SCHEMA.find(s => s.id === m.section);
-      const c = mangelCard(m, 'M' + (i + 1));
+      const c = mangelCard(m, 'PD' + (i + 1));
       c.prepend(el('small', { class: 'sec' }, sec ? sec.title : ''));
       all.append(c);
     });
@@ -137,14 +137,14 @@ function renderAllMaengelLists() {
 
 let mangelDraft = null;
 function openMangel(src) {
-  // src: bestehender Mangel oder { section, ref, refLabel } für einen neuen
+  // src: bestehende Pendenz oder { section, ref, refLabel } für eine neue
   const existing = state.maengel.includes(src) ? src : null;
   mangelDraft = existing ? JSON.parse(JSON.stringify(existing)) :
     { id: uid(), section: src.section, ref: src.ref, refLabel: src.refLabel, text: '', massnahme: '', verantwortlich: '', frist: '', photos: [], created: new Date().toISOString() };
   $('mgRef').textContent = mangelDraft.refLabel || '';
   $('mgText').value = mangelDraft.text; $('mgMass').value = mangelDraft.massnahme;
   $('mgVer').value = mangelDraft.verantwortlich; $('mgFrist').value = mangelDraft.frist;
-  $('mgTitle').textContent = existing ? `Mangel ${mangelNr(existing)} bearbeiten` : 'Mangel erfassen';
+  $('mgTitle').textContent = existing ? `Pendenz ${mangelNr(existing)} bearbeiten` : 'Pendenz erfassen';
   $('mgDelete').style.display = existing ? '' : 'none';
   // Vorschläge für «Verantwortlich» aus bisherigen Einträgen
   $('mgVerList').innerHTML = '';
@@ -158,7 +158,7 @@ function drawMangelPhotos() {
   const box = $('mgPhotos');
   box.innerHTML = '';
   mangelDraft.photos.forEach(p => box.append(el('div', { class: 'ph' },
-    el('img', { src: p.data, alt: 'Foto Mangel' }),
+    el('img', { src: p.data, alt: 'Foto Pendenz' }),
     el('button', { type: 'button', class: 'del', 'aria-label': 'Foto löschen', onclick: () => { mangelDraft.photos = mangelDraft.photos.filter(x => x !== p); drawMangelPhotos(); } }, '×'))));
   box.append(...photoAddTiles(async files => {
     for (const file of files) {
@@ -172,7 +172,7 @@ function saveMangel() {
   const d = mangelDraft;
   d.text = $('mgText').value.trim(); d.massnahme = $('mgMass').value.trim();
   d.verantwortlich = $('mgVer').value.trim(); d.frist = $('mgFrist').value;
-  if (!d.text) { toast('Bitte den Mangel beschreiben.'); $('mgText').focus(); return; }
+  if (!d.text) { toast('Bitte die Pendenz beschreiben.'); $('mgText').focus(); return; }
   const i = state.maengel.findIndex(m => m.id === d.id);
   if (i >= 0) state.maengel[i] = d; else state.maengel.push(d);
   $('dlgMangel').close();
@@ -180,7 +180,7 @@ function saveMangel() {
 }
 
 function deleteMangel() {
-  if (!confirm('Mangel löschen?')) return;
+  if (!confirm('Pendenz löschen?')) return;
   state.maengel = state.maengel.filter(m => m.id !== mangelDraft.id);
   $('dlgMangel').close();
   afterChange();
@@ -320,7 +320,7 @@ function autoWeather() {
 }
 
 /* ---------- Pflichtfelder ---------- */
-const missingRequired = () => Object.values(FIELDS).filter(f => f.req && !isFilled(f));
+const missingRequired = () => [...Object.values(FIELDS).filter(f => f.req && !isFilled(f)), ...pkMissing()];
 
 function checkRequired(go) {
   const miss = missingRequired();

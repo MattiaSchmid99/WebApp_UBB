@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '13'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
+const APP_VERSION = '17'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
 
 /* ---------- Speicher (IndexedDB, Fallback: nur im Arbeitsspeicher) ---------- */
 const DB = (() => {
@@ -37,7 +37,7 @@ function loadProfile() { try { return JSON.parse(localStorage.getItem(PROFILE_KE
 function saveProfile(p) { try { localStorage.setItem(PROFILE_KEY, JSON.stringify(p)); } catch {} }
 
 /* ---------- Zustand ---------- */
-let state = { values: {}, photos: {}, gis: {}, maengel: [], nrel: {} };
+let state = { values: {}, photos: {}, gis: {}, maengel: [], nrel: {}, pkontrolle: [] };
 const FIELDS = {};
 SCHEMA.forEach(s => s.fields.forEach(f => { FIELDS[f.id] = f; f.section = s.id; }));
 
@@ -56,7 +56,7 @@ function freshState(keep) {
       if (state.values[f.id + '_andere'] != null) values[f.id + '_andere'] = state.values[f.id + '_andere'];
     }
   }
-  return { id: uid(), rev: 0, savedRev: 0, values, photos: {}, gis: {}, maengel: [], nrel: {} };
+  return { id: uid(), rev: 0, savedRev: 0, values, photos: {}, gis: {}, maengel: [], nrel: {}, pkontrolle: [] };
 }
 // Auflagen für ein neues Protokoll: Text und Herkunft übernehmen, Status/Bemerkung leeren
 const resetAuflagen = arr => (Array.isArray(arr) ? arr : []).filter(a => a && String(a.text || '').trim())
@@ -146,7 +146,7 @@ function isFilled(f) {
     case 'photos': return (state.photos[f.id] || []).length > 0;
     case 'gis': return ((state.gis || {})[f.id] || []).length > 0;
     case 'auflagen': return Array.isArray(v) && v.some(a => String(a.text || '').trim());
-    case 'mlist': return false;
+    case 'mlist': case 'pkontrolle': return false;
     case 'proben': return Array.isArray(v) && v.length > 0;
     case 'neophyten': return Array.isArray(v) && v.some(b => b.art);
     case 'multi': return (Array.isArray(v) && v.length > 0) || !!(state.values[f.id + '_andere'] || '').trim();
@@ -159,6 +159,7 @@ function setValue(id, v) {
   if (v === '' || v == null || (Array.isArray(v) && !v.length)) delete state.values[id];
   else state.values[id] = v;
   const f = FIELDS[id];
+  if (id === 'projekt' && SP.enabled()) spSyncPicker();
   if (f && f.profile) { const p = loadProfile(); p[id] = v || ''; saveProfile(p); }
   // Grundwasserschutzgebiet aus Kopfdaten in Gewässerschutz übernehmen, falls dort leer
   if (id === 'gwSchutz' && v && !state.values.gew_zone) {
@@ -180,11 +181,13 @@ function afterChange() {
     const b = document.getElementById('b_' + s.id);
     const np = s.id === 'proben' ? (state.values.proben_liste || []).length : 0;
     const nn = s.id === 'maengel' ? neoToFight().length : 0;
-    b.textContent = s.id === 'maengel' ? ([mc && `${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}`, nn && `${nn} Neophyten`].filter(Boolean).join(' · ') || 'keine')
-      : np && !nr ? `${np} ${np === 1 ? 'Probe' : 'Proben'}` + (mc ? ` · ${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}` : '')
-      : nr ? 'n. rel.' : (n ? `${n} ausgefüllt` : 'leer') + (mc ? ` · ${mc} ${mc === 1 ? 'Mangel' : 'Mängel'}` : '');
-    b.classList.toggle('on', n > 0 || nr);
-    b.classList.toggle('warn', mc > 0 && !nr);
+    const pz = c => `${c} ${c === 1 ? 'Pendenz' : 'Pendenzen'}`;
+    b.textContent = s.id === 'maengel' ? ([mc && pz(mc), nn && `${nn} Neophyten`].filter(Boolean).join(' · ') || 'keine')
+      : s.id === 'pkontrolle' ? pkBadge()
+      : np && !nr ? `${np} ${np === 1 ? 'Probe' : 'Proben'}` + (mc ? ` · ${pz(mc)}` : '')
+      : nr ? 'n. rel.' : (n ? `${n} ausgefüllt` : 'leer') + (mc ? ` · ${pz(mc)}` : '');
+    b.classList.toggle('on', n > 0 || nr || (s.id === 'pkontrolle' && (state.pkontrolle || []).length > 0));
+    b.classList.toggle('warn', (mc > 0 && !nr) || (s.id === 'pkontrolle' && pkOpenCount() > 0));
     const sf = document.getElementById('sf_' + s.id);
     if (sf) sf.classList.toggle('hidden', nr);
     const nb = document.getElementById('nr_' + s.id);
@@ -238,7 +241,7 @@ function labelEl(f, forId) {
     f.label, f.req ? el('span', { class: 'req', title: 'Pflichtfeld' }, ' *') : null,
     f.hint ? el('span', { class: 'hint' }, f.hint) : null);
 }
-// Felder, bei denen ein Mangel erfasst werden kann
+// Felder, bei denen eine Pendenz erfasst werden kann
 const canMangel = f => SCHEMA.find(s => s.id === f.section).env && ['radio', 'multi', 'text', 'number', 'textarea'].includes(f.type);
 
 function renderField(f) {
@@ -259,6 +262,7 @@ function renderField(f) {
     });
     if (f.ph) checkPh(inp);
     w.append(labelEl(f, inpId), inp);
+    if (f.id === 'projekt' && SP.enabled()) { w.insertBefore(spProjectPicker(), inp); inp.placeholder = 'oder hier eintippen'; inp.addEventListener('change', spNormalizeProject); }
     if (f.weather) w.append(weatherRow());
   } else if (f.type === 'textarea') {
     const ta = el('textarea', { id: inpId, rows: 3, oninput: e => { setValue(f.id, e.target.value); autosize(e.target); } });
@@ -294,13 +298,15 @@ function renderField(f) {
     w.append(renderProben(f));
   } else if (f.type === 'neophyten') {
     w.append(labelEl(f), renderNeophyten(f));
+  } else if (f.type === 'pkontrolle') {
+    w.append(renderPkontrolle());
   } else if (f.type === 'mlist') {
     w.append(labelEl(f), el('div', { class: 'mlist', id: 'mlAll' }));
   }
   if (canMangel(f)) {
     w.append(el('div', { class: 'mrow' },
       el('div', { class: 'mlist', id: 'ml_' + f.id }),
-      el('button', { type: 'button', class: 'mbtn', onclick: () => openMangel({ section: f.section, ref: f.id, refLabel: f.label }) }, '+ Mangel')));
+      el('button', { type: 'button', class: 'mbtn', onclick: () => openMangel({ section: f.section, ref: f.id, refLabel: f.label }) }, '+ Pendenz')));
   }
   return w;
 }
@@ -703,21 +709,24 @@ function buildPdf() {
   }
 
   const ORD = orderedMaengel();
-  const mNr = m => 'M' + (ORD.indexOf(m) + 1);
+  const mNr = m => 'PD' + (ORD.indexOf(m) + 1);
   const secTitle = id => (SCHEMA.find(x => x.id === id) || {}).title || '';
   const refText = m => FIELDS[m.ref] ? FIELDS[m.ref].label : (m.refLabel || '');
   const mangelRows = list => list.map(m => ({
-    cells: [mNr(m), refText(m), 'Mangel: ' + m.text + (m.massnahme ? '\nMassnahme: ' + m.massnahme : ''), m.verantwortlich || '-', m.frist ? fmtDate(m.frist) : '-'],
+    cells: [mNr(m), refText(m), m.text + (m.massnahme ? '\nMassnahme: ' + m.massnahme : ''), m.verantwortlich || '-', m.frist ? fmtDate(m.frist) : '-'],
     warn: [],
   }));
-  const MCOLS = [{ t: 'Nr.', w: 11 }, { t: 'Punkt', w: 48 }, { t: 'Mangel / Massnahme', w: 75 }, { t: 'Verantwortlich', w: 26 }, { t: 'Frist', w: 20 }];
-  // Auflagen «nicht erfüllt» ohne eigenen Mangel erscheinen ebenfalls in der Massnahmenliste
+  const MCOLS = [{ t: 'Nr.', w: 11 }, { t: 'Punkt', w: 48 }, { t: 'Pendenz / Massnahme', w: 75 }, { t: 'Verantwortlich', w: 26 }, { t: 'Frist', w: 20 }];
+  // Auflagen «nicht erfüllt» ohne eigene Pendenz erscheinen ebenfalls in der Pendenzenliste
   const openAuflagen = [];
   for (const s of SCHEMA) for (const f of s.fields) if (f.type === 'auflagen') (state.values[f.id] || []).forEach((a, i) => {
     if (a.status === 'nicht erfüllt' && !state.maengel.some(m => m.ref === a.id)) openAuflagen.push({ s, a, nr: `A${i + 1}` });
   });
   const SKIP_PDF = new Set(['kenntnis_name']);
-  const sectionHasContent = s => !state.nrel[s.id] && (
+  const PK = state.pkontrolle || [];
+  const pkNr = p => `${p.orig.nr}\n${fmtDate(p.orig.datum)}`;
+  const pkPunkt = p => [p.orig.bereich, p.orig.punkt].filter(Boolean).join(': ');
+  const sectionHasContent = s => s.id === 'pkontrolle' ? PK.length > 0 : !state.nrel[s.id] && (
     s.fields.some(f => isVisible(f) && isFilled(f) && f.type !== 'signature' && !SKIP_PDF.has(f.id)) ||
     state.maengel.some(m => m.section === s.id));
 
@@ -725,9 +734,22 @@ function buildPdf() {
   const nrelList = SCHEMA.filter(x => state.nrel[x.id]).map(x => x.title);
   const anyContent = SCHEMA.some(sectionHasContent) || nrelList.length || ORD.length;
   if (!anyContent) return null;
-  // Mängel und Massnahmen ganz oben
-  sectionHead('Mängel und Massnahmen');
+  // Pendenzen ganz oben: zuerst die noch offenen aus früheren Begehungen, dann die neuen
+  sectionHead('Pendenzen');
   const NEO = neoToFight();
+  if (PK.length) {
+    const pkOpen = PK.filter(p => p.status !== 'erledigt'), pkDone = PK.filter(p => p.status === 'erledigt');
+    subHead('Aus früheren Begehungen');
+    if (pkOpen.length) table([{ t: 'Nr. / vom', w: 20 }, { t: 'Punkt', w: 40 }, { t: 'Pendenz / Kontrolle', w: 74 }, { t: 'Verantwortlich', w: 25 }, { t: 'Frist', w: 21 }],
+      pkOpen.map(p => ({
+        cells: [pkNr(p), pkPunkt(p), p.orig.text + (p.orig.massnahme ? '\n' + (p.kind === 'neophyt' ? 'Bemerkung: ' : 'Massnahme: ') + p.orig.massnahme : '')
+          + `\nKontrolle: ${p.status || 'nicht kontrolliert'}${p.kommentar ? ' – ' + p.kommentar : ''}`,
+          p.orig.verantwortlich || '-', p.orig.frist ? fmtDate(p.orig.frist) : '-'],
+        warn: p.orig.frist && p.orig.frist < (v.datum || today()) ? [4] : [],
+      })));
+    if (pkDone.length) row('Erledigt', pkDone.map(p => `${p.orig.nr} vom ${fmtDate(p.orig.datum)}`).join(', '));
+    subHead('Neu');
+  }
   if (ORD.length || openAuflagen.length || NEO.length) {
     table(MCOLS, [...mangelRows(ORD), ...NEO.map(b => ({
       cells: [`N${state.values.org_bestaende.indexOf(b) + 1}`, 'Invasive Neophyten' + (neoAnh(b) ? ` (FrSV Anh. ${neoAnh(b)})` : ''),
@@ -736,14 +758,16 @@ function buildPdf() {
       cells: [o.nr, `${o.s.title}: Auflage (${o.a.herkunft})`, 'Auflage nicht erfüllt: ' + o.a.text + (o.a.bemerkung ? '\nBemerkung: ' + o.a.bemerkung : ''), '-', '-'],
       warn: [],
     }))]);
-  } else row('Mängel', 'Keine Mängel erfasst');
+  } else row('Neue Pendenzen', 'Keine');
 
   sectionHead('Zusammenfassung');
   const gb = v.gesamt_beurteilung;
   row('Gesamtbeurteilung', gb || '-', gb && gb !== 'In Ordnung');
   if (v.gesamt_eindruck) row('Eindruck der Baustelle', v.gesamt_eindruck);
   if (v.bericht_vorfaelle === 'Ja') row('Umweltvorfall', 'Ja' + (v.vorfall_was ? ': ' + v.vorfall_was.split('\n')[0] : '') + ' (Details unter Berichterstattung)', true);
-  if (NEO.length) row('Neophyten zu bekämpfen', `${NEO.length} ${NEO.length === 1 ? 'Bestand' : 'Bestände'} (siehe Massnahmenliste)`, true);
+  if (PK.length) { const e = PK.filter(p => p.status === 'erledigt').length; row('Pendenzen aus früheren Begehungen', `${e} von ${PK.length} erledigt`, e < PK.length); }
+  if (ORD.length) row('Neue Pendenzen', String(ORD.length), true);
+  if (NEO.length) row('Neophyten zu bekämpfen', `${NEO.length} ${NEO.length === 1 ? 'Bestand' : 'Bestände'} (siehe Pendenzen)`, true);
   if (nrelList.length) row('Nicht relevante Bereiche', nrelList.join('; '));
   if (v.gesamt_massnahmen) row('Weitere Massnahmen', v.gesamt_massnahmen);
   if (v.bericht_naechste) row('Nächste Begehung', fmtDate(v.bericht_naechste));
@@ -751,6 +775,19 @@ function buildPdf() {
 
   for (const s of SCHEMA) {
     if (s.id === 'gesamt' || !sectionHasContent(s)) continue;
+    if (s.id === 'pkontrolle') {
+      sectionHead(s.title);
+      table([{ t: 'Nr. / vom', w: 20 }, { t: 'Pendenz', w: 76 }, { t: 'Status', w: 24 }, { t: 'Kommentar', w: 60 }],
+        PK.map(p => ({
+          cells: [pkNr(p), (pkPunkt(p) ? pkPunkt(p) + '\n' : '') + p.orig.text
+            + (p.history || []).map(h => `\nKontrolle ${fmtDate(h.datum)}: ${h.status}${h.kommentar ? ' – ' + h.kommentar : ''}`).join(''),
+            p.status || 'nicht kontrolliert', p.kommentar || ''],
+          warn: p.status === 'erledigt' ? [] : [2],
+        })));
+      const ph = PK.flatMap(p => (p.photos || []).map((x, k) => ({ ...x, id: x.id || p.key + k, caption: `${p.orig.nr} vom ${fmtDate(p.orig.datum)} – Kontrolle: ${p.status || 'nicht kontrolliert'}` })));
+      if (ph.length) photos(ph);
+      continue;
+    }
     // Nur sichtbare + ausgefüllte Felder; Zwischentitel nur, wenn darunter etwas ausgefüllt ist
     const items = [];
     // Zwischentitel nur ausgeben, wenn darunter etwas ausgefüllt ist; Teilbereichs-Titel bleiben vor Unter-Titeln
@@ -785,7 +822,7 @@ function buildPdf() {
         aufl.map((a, i) => ({ cells: [`A${i + 1}`, a.text, a.herkunft || '-', a.status || 'nicht geprüft', a.bemerkung || ''], warn: a.status === 'nicht erfüllt' ? [3] : [] })));
     }
     if (secM.length) {
-      subHead('Mängel');
+      subHead('Pendenzen');
       table(MCOLS, mangelRows(secM));
       const ph = secM.flatMap(m => (m.photos || []).map((p, k) => ({ ...p, id: p.id || m.id + k, caption: `${mNr(m)}: ${m.text}`.slice(0, 120) })));
       if (ph.length) photos(ph);
@@ -858,7 +895,7 @@ async function storePresets() {
 }
 
 // Felder, die in einem Preset vorkommen dürfen
-const presetable = f => !['photos', 'sub', 'gis', 'signature', 'mlist', 'proben', 'neophyten'].includes(f.type) && f.id !== 'datum';
+const presetable = f => !['photos', 'sub', 'gis', 'signature', 'mlist', 'pkontrolle', 'proben', 'neophyten'].includes(f.type) && f.id !== 'datum';
 // Werte eines Feldes inkl. «Andere»-Text
 function fieldValues(src, id) {
   const out = {};
@@ -1021,6 +1058,8 @@ async function init() {
   render();
   setSaveState('');
   initArchive();
+  initPk();
+  initSp();
   $('mgSave').onclick = saveMangel;
   $('mgDelete').onclick = deleteMangel;
   $('mgCancel').onclick = () => $('dlgMangel').close();
@@ -1053,6 +1092,7 @@ async function init() {
     render(); await saveCurrent(); window.scrollTo(0, 0); updateSaveIndicator();
     autoWeather();
     toast(p ? `Neue Begehung mit Preset «${p.name}».` : 'Neue Begehung gestartet.');
+    pkAutoOnNew();
   };
 
   if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {

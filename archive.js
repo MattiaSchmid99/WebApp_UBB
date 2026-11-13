@@ -15,7 +15,7 @@ const unsaved = st => (st.rev || 0) > (st.savedRev || 0);
 
 // Fehlende Teile ergänzen und ältere Strukturen übernehmen
 function prepState(st) {
-  st.values ||= {}; st.photos ||= {}; st.gis ||= {}; st.maengel ||= []; st.nrel ||= {};
+  st.values ||= {}; st.photos ||= {}; st.gis ||= {}; st.maengel ||= []; st.nrel ||= {}; st.pkontrolle ||= [];
   st.id ||= uid();
   st.rev ||= 0; st.savedRev ||= 0;
   migrateState(st);
@@ -29,6 +29,7 @@ function metaOf(st) {
     art: [v.artBegehung, v.artBegehung_andere].filter(Boolean).join(', '),
     ubb: [v.ubbName, v.ubbKuerzel && `(${v.ubbKuerzel})`].filter(Boolean).join(' '),
     updated: new Date().toISOString(), rev: st.rev || 0, savedRev: st.savedRev || 0, savedAt: st.savedAt || null,
+    spQueued: st.spQueued || 0, spUploadedRev: st.sp ? st.sp.uploadedRev : 0, spUploadedAt: st.sp ? st.sp.uploadedAt : null,
   };
 }
 
@@ -72,7 +73,8 @@ const AUTO_FIELDS = ['datum', 'wetter', 'ubbName', 'ubbKuerzel'];
 function isEmptyBeg(st) {
   const filled = v => Array.isArray(v) ? v.length > 0 : v != null && String(v).trim() !== '';
   return !Object.entries(st.values).some(([k, v]) => !AUTO_FIELDS.includes(k) && filled(v)) && !st.maengel.length
-    && !Object.values(st.photos).some(l => l && l.length) && !Object.values(st.gis || {}).some(l => l && l.length);
+    && !Object.values(st.photos).some(l => l && l.length) && !Object.values(st.gis || {}).some(l => l && l.length)
+    && !(st.pkontrolle || []).some(p => p.status || p.kommentar || (p.photos || []).length);
 }
 async function dropIfEmpty(st) {
   if (!st || st.id === state.id || !((st.rev || 0) === 0 || isEmptyBeg(st))) return; // leer oder seit dem Anlegen unbearbeitet
@@ -90,7 +92,9 @@ function renderArchive() {
   for (const a of list) {
     const cur = a.id === state.id;
     const meta = cur ? metaOf(state) : a;
-    const status = unsaved(meta)
+    // mit SharePoint: Status des Uploads, sonst Status der Begehungsdatei
+    const status = SP.enabled() ? spBegStatus(cur ? state : { rev: meta.rev, spQueued: meta.spQueued, sp: meta.spUploadedAt ? { uploadedRev: meta.spUploadedRev, uploadedAt: meta.spUploadedAt } : null })
+      : unsaved(meta)
       ? el('span', { class: 'st warn' }, 'Nicht als Begehungsdatei gespeichert')
       : el('span', { class: 'st ok' }, meta.savedAt ? `Begehungsdatei gespeichert ${new Date(meta.savedAt).toLocaleDateString('de-CH')}` : 'leer');
     box.append(el('div', { class: 'pitem' + (cur ? ' cur' : '') },
@@ -160,7 +164,7 @@ async function readBegFile(file) {
   return { st, exported: obj.exported };
 }
 
-async function importBegFile(file) {
+async function importBegFile(file, after) {
   let r;
   try { r = await readBegFile(file); } catch (e) { toast(e.message || 'Datei konnte nicht gelesen werden.'); return; }
   const ex = archive.find(a => a.id === r.st.id) || (state.id === r.st.id ? metaOf(state) : null);
@@ -172,6 +176,7 @@ async function importBegFile(file) {
   if (state.id !== r.st.id) await saveCurrent();
   const prev = state;
   state = r.st;
+  if (after) after(state);
   await saveCurrent();
   await dropIfEmpty(prev);
   $('dlgArchive').close();
@@ -202,7 +207,8 @@ function photoFiles() {
   const add = (data, name) => { if (data) out.push(dataUrlToFile(data, pre + name)); };
   for (const s of SCHEMA) for (const f of s.fields) if (f.type === 'photos')
     (state.photos[f.id] || []).forEach((p, i) => add(p.data, `${slug(s.title)}_${i + 1}${p.caption ? '_' + slug(p.caption) : ''}.jpg`));
-  orderedMaengel().forEach((m, i) => (m.photos || []).forEach((p, k) => add(p.data, `M${i + 1}_${slug(m.text)}_${k + 1}.jpg`)));
+  pkPhotoFiles(add);
+  orderedMaengel().forEach((m, i) => (m.photos || []).forEach((p, k) => add(p.data, `PD${i + 1}_${slug(m.text)}_${k + 1}.jpg`)));
   (state.values.proben_liste || []).forEach((p, i) => (p.photos || []).forEach((x, k) => add(x.data, `P${i + 1}_${slug(p.bez || p.typ)}_${k + 1}.jpg`)));
   (state.values.org_bestaende || []).forEach((b, i) => (b.photos || []).forEach((x, k) => add(x.data, `N${i + 1}_${slug(neoName(b))}_${k + 1}.jpg`)));
   Object.values(state.gis || {}).flat().forEach((m, i) => add(m.data, `K${i + 1}_${slug(m.layerLabel)}.jpg`));
@@ -213,9 +219,11 @@ function photoFiles() {
 
 /* ---------- Dialog mit Dateien ---------- */
 // entries: [{ file, label, primary?, onSaved?, preview? }]
-function showFiles(title, info, entries, extra) {
+function showFiles(title, info, entries, extra, top) {
   $('fTitle').textContent = title;
   $('fInfo').textContent = info || '';
+  $('fTop').innerHTML = '';
+  if (top) $('fTop').append(top);
   const box = $('fList'); box.innerHTML = '';
   const all = entries.map(e => e.file);
   if (entries.length > 1 && canShareFiles(all)) {
@@ -248,31 +256,23 @@ async function buildSaveFiles() {
     await new Promise(r => setTimeout(r, 30));
     const base = fileName().replace(/\.pdf$/, '');
     const pdfBlob = buildPdf();
-    const rec = csvRecord();
     const entries = [];
     const begStatus = el('span', { class: 'st' });
     const setBegStatus = () => { begStatus.className = 'st ' + (unsaved(state) ? 'warn' : 'ok'); begStatus.textContent = unsaved(state) ? 'noch nicht gespeichert' : '✓ gespeichert'; };
-    setBegStatus();
+    setBegStatus(); begStatus.dataset.begStatus = ''; begStatus.refresh = setBegStatus;
     entries.push({ file: begehungFile(base), label: 'Begehungsdatei – alle Daten inkl. Fotos, kann wieder geöffnet werden', primary: true, statusEl: begStatus,
       onSaved: () => { state.savedRev = state.rev; state.savedAt = new Date().toISOString(); saveCurrent(); setBegStatus(); } });
     if (pdfBlob) entries.push({ file: new File([pdfBlob], base + '.pdf', { type: 'application/pdf' }), label: 'PDF-Protokoll', preview: true });
-    entries.push({ file: new File([toCsv([rec.map(r => r[0]), rec.map(r => r[1])], ';')], base + '.csv', { type: 'text/csv' }), label: 'CSV – diese Begehung als eine Zeile' });
     const photos = photoFiles();
     const extra = [];
     if (photos.length) extra.push(el('button', { type: 'button', class: 'btn', style: 'width:100%', onclick: async () => {
       if (canShareFiles(photos)) await shareFiles(photos);
       else { photos.forEach((f, i) => setTimeout(() => downloadBlob(f, f.name), i * 400)); }
     } }, `Fotos und Karten als Bilder speichern (${photos.length})`));
-    const app = el('input', { type: 'file', accept: '.csv,text/csv,text/plain,application/vnd.ms-excel', onchange: async e => {
-      const f = e.target.files[0]; e.target.value = ''; if (!f) return;
-      const r = await csvAppend(f); if (!r) return;
-      entries.push({ file: new File([r.text], r.name, { type: 'text/csv' }), label: 'Sammel-CSV (ergänzt) – ' + r.info });
-      showFiles($('fTitle').textContent, $('fInfo').textContent, entries, extra);
-    } });
-    extra.push(el('label', { class: 'btn filebtn', style: 'width:100%' }, 'Bestehende Sammel-CSV ergänzen', app));
     showFiles('Begehung speichern',
-      'In OneDrive im Projektordner speichern. Die Begehungsdatei ist das Original: Sie enthält alle Daten und kann jederzeit wieder geöffnet, angepasst und neu ausgegeben werden.',
-      entries, extra);
+      SP.enabled() ? 'Alternativ die Dateien selbst speichern (z.B. ohne Anmeldung):'
+        : 'In OneDrive im Projektordner speichern. Die Begehungsdatei ist das Original: Sie enthält alle Daten und kann jederzeit wieder geöffnet, angepasst und neu ausgegeben werden.',
+      entries, extra, spPanel(true));
   } catch (e) {
     console.error(e); toast('Fehler beim Erstellen der Dateien.');
   } finally {
@@ -288,7 +288,8 @@ function massnahmenRows() {
   const v = state.values, rows = [], secT = id => (SCHEMA.find(x => x.id === id) || {}).title || '';
   const base = { id: state.id, datum: v.datum ? fmtDate(v.datum) : '', projekt: v.projekt || '' };
   const pos = o => o && o.E ? [String(Math.round(o.E)), String(Math.round(o.N)), o.acc ? String(Math.round(o.acc)) : ''] : ['', '', ''];
-  orderedMaengel().forEach((m, i) => rows.push([base.id, base.datum, base.projekt, 'Mangel', `M${i + 1}`, secT(m.section),
+  rows.push(...pkMassRows(base));
+  orderedMaengel().forEach((m, i) => rows.push([base.id, base.datum, base.projekt, 'Pendenz', `PD${i + 1}`, secT(m.section),
     FIELDS[m.ref] ? FIELDS[m.ref].label : (m.refLabel || ''), m.text, m.massnahme || '', m.verantwortlich || '', m.frist ? fmtDate(m.frist) : '', 'offen', '', '', '', '', String((m.photos || []).length)]));
   for (const s of SCHEMA) for (const f of s.fields) if (f.type === 'auflagen' && !state.nrel[s.id])
     (v[f.id] || []).filter(a => String(a.text || '').trim()).forEach((a, i) => rows.push([base.id, base.datum, base.projekt, 'Auflage', `A${i + 1}`, s.title,
@@ -303,7 +304,7 @@ function massnahmenRows() {
 }
 const MASS_HEAD = ['Protokoll-ID', 'Datum Begehung', 'Projekt', 'Typ', 'Nr.', 'Bereich', 'Punkt / Art / Herkunft', 'Beschreibung', 'Massnahme', 'Verantwortlich', 'Frist', 'Status', 'Bemerkung', 'E (LV95)', 'N (LV95)', 'Genauigkeit (m)', 'Anzahl Fotos'];
 
-async function buildSammelCsv(fileList) {
+async function buildSammelCsv(fileList, spFolder) {
   const items = [], errs = [];
   for (const f of fileList) {
     try { items.push(await readBegFile(f)); } catch { errs.push(f.name); }
@@ -325,16 +326,27 @@ async function buildSammelCsv(fileList) {
   const entries = [
     { file: new File([toCsv([head, ...rows.map(r => head.map(h => r.get(h) ?? ''))], ';')], `UBB-Begehungen_${name}.csv`, { type: 'text/csv' }),
       label: `Sammel-CSV – ${list.length} Begehung${list.length === 1 ? '' : 'en'}, eine Zeile pro Begehung` },
-    { file: new File([toCsv([MASS_HEAD, ...mass], ';')], `UBB-Massnahmen-Proben-Neophyten_${name}.csv`, { type: 'text/csv' }),
-      label: `Liste – ${mass.length} Einträge, eine Zeile pro Mangel, Auflage, Probe und Neophyten-Bestand` },
+    { file: new File([toCsv([MASS_HEAD, ...mass], ';')], `UBB-Pendenzen-Auflagen-Proben_${name}.csv`, { type: 'text/csv' }),
+      label: `Liste – ${mass.length} Einträge, eine Zeile pro Pendenz, Pendenzen-Kontrolle, Auflage, Probe und Neophyten-Bestand` },
   ];
   $('dlgArchive').close();
-  showFiles('Sammel-CSV', `Neu erstellt aus ${list.length} Begehungsdatei${list.length === 1 ? '' : 'en'}${errs.length ? ` (nicht lesbar: ${errs.join(', ')})` : ''}${items.length > list.length ? '; doppelte Begehungen nur mit dem neuesten Stand' : ''}.`, entries, []);
+  // aus SharePoint geladen: Ergebnis direkt im Projektordner ablegen
+  const extra = spFolder ? [el('button', { type: 'button', class: 'btn primary', style: 'width:100%;max-width:none', onclick: async e => {
+    const b = e.currentTarget; b.disabled = true; b.textContent = 'Wird gespeichert …';
+    try { for (const en of entries) await SP.put(`${spFolder}/${en.file.name}`, en.file); b.textContent = '✓ Im Projektordner in SharePoint gespeichert'; }
+    catch (err) { b.disabled = false; b.textContent = 'In SharePoint speichern (Projektordner)'; toast(spErr(err)); }
+  } }, 'In SharePoint speichern (Projektordner)')] : [];
+  showFiles('Sammel-CSV', `Neu erstellt aus ${list.length} Begehungsdatei${list.length === 1 ? '' : 'en'}${errs.length ? ` (nicht lesbar: ${errs.join(', ')})` : ''}${items.length > list.length ? '; doppelte Begehungen nur mit dem neuesten Stand' : ''}.`, entries, extra);
 }
 
 /* ---------- Start ---------- */
 function initArchive() {
-  $('btnArchive').onclick = () => { flushSave(); renderArchive(); $('dlgArchive').showModal(); };
+  $('btnArchive').onclick = () => {
+    flushSave();
+    const top = $('archSp'); top.innerHTML = '';
+    if (SP.enabled()) top.append(spPanel(false), el('button', { type: 'button', class: 'btn', style: 'width:100%', onclick: () => spBrowse() }, 'Aus SharePoint öffnen'));
+    renderArchive(); $('dlgArchive').showModal();
+  };
   $('archClose').onclick = () => $('dlgArchive').close();
   $('archNew').onclick = () => { $('dlgArchive').close(); openNewDialog(); };
   $('archOpen').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) importBegFile(f); };

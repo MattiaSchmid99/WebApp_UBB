@@ -10,9 +10,9 @@ const ZONEN = ['S1 (Fassungsbereich)', 'S2 (Engere Schutzzone)', 'S3 (Weitere Sc
 
 const SCHEMA = [
   {
-    id: 'maengel', title: 'Mängelliste', noPhotos: true,
-    intro: 'Mängel bei der jeweiligen Frage mit «+ Mangel» erfassen. Hier stehen alle Mängel dieser Begehung; antippen zum Bearbeiten. Im PDF steht die Liste ganz oben.',
-    fields: [{ id: 'maengel_ml', label: 'Erfasste Mängel', type: 'mlist' }],
+    id: 'maengel', title: 'Neue Pendenzen', noPhotos: true,
+    intro: 'Pendenzen bei der jeweiligen Frage mit «+ Pendenz» erfassen. Hier stehen alle neuen Pendenzen dieser Begehung inkl. zu bekämpfender Neophyten-Bestände; antippen zum Bearbeiten. Im PDF steht die Liste ganz oben. Offene Pendenzen werden in die nächste Begehung übernommen.',
+    fields: [{ id: 'maengel_ml', label: 'Erfasste Pendenzen', type: 'mlist' }],
   },
   {
     id: 'allg', title: 'Allgemeine Angaben', fields: [
@@ -37,6 +37,11 @@ const SCHEMA = [
     ]
   },
   {
+    id: 'pkontrolle', title: 'Pendenzen aus früheren Begehungen', noPhotos: true,
+    intro: 'Offene Pendenzen und zu bekämpfende Neophyten-Bestände der letzten Begehung dieses Projekts. Pro Pendenz «erledigt» oder «nicht erledigt» wählen, Kommentar und Fotos ergänzen. Nicht erledigte Pendenzen werden in die nächste Begehung weitergeführt.',
+    fields: [{ id: 'pk_list', label: 'Pendenzen', type: 'pkontrolle' }],
+  },
+  {
     id: 'laerm', title: 'Luft und Lärm', fields: [
       { id: 'laerm_area', label: 'Lärm', type: 'sub', area: 'Luft und Lärm' },
       { id: 'laerm_stufePhase', label: 'Massnahmenstufe (lärmige Bauphase)', type: 'radio', options: ['A', 'B', 'C'] },
@@ -57,13 +62,6 @@ const SCHEMA = [
       { id: 'mg_partikelfilter', label: 'Sind Partikelfilter vorhanden?', hint: 'Kontrolle d. Auspuffes auf Sauberkeit', type: 'radio', options: JNR },
       { id: 'mg_untergrund', label: 'Sind Untergrundsflächen sauber?', hint: 'Gegen Staubaufwirbelung', type: 'radio', options: JNR },
       { id: 'mg_bem', label: 'Bemerkungen (Abweichungen von ML oder korrekter PF-Wartung)', type: 'textarea' },
-      { id: 'ersch_area', label: 'Erschütterungen und Körperschall', type: 'sub', area: 'Erschütterungen und Körperschall', hint: 'Hilfsmittel: SN 640 312a, Erschütterungsschutzkonzept' },
-      { id: 'ersch_arbeiten', label: 'Werden erschütterungsintensive Arbeiten ausgeführt?', hint: 'z.B. Rammen, Sprengen, Verdichten', type: 'radio', options: JNR },
-      { id: 'ersch_grenzwerte', label: 'Werden Grenzwerte gemäss SN 640 312a eingehalten?', type: 'radio', options: JNR },
-      { id: 'ersch_gebaeude', label: 'Sind erschütterungsempfindliche Gebäude oder Anlagen in der Nähe?', hint: 'z.B. Wohnbauten, Denkmäler, Leitungen', type: 'radio', options: JNR },
-      { id: 'ersch_messung', label: 'Wird eine Erschütterungsmessung durchgeführt?', type: 'radio', options: JNR },
-      { id: 'ersch_fotos', label: 'Fotos', type: 'photos' },
-      { id: 'ersch_bem', label: 'Bemerkungen', type: 'textarea' },
     ]
   },
   {
@@ -245,8 +243,8 @@ const PROBEN_TYPEN = ['Aushub', 'Ausbruch', 'Unterboden', 'Oberboden', 'Baustoff
 // Frühere Abschnitte, die in andere aufgegangen sind (für bestehende Entwürfe, Presets und Mängel)
 const SECTION_MOVED = { mg: 'laerm', ersch: 'laerm', wsf: 'gew', beton: 'abf', pers: 'bericht' };
 
-// Umweltbereiche: Abschnitte mit Mängelerfassung, «n. rel.» für den ganzen Abschnitt und Auflagen
-const NON_ENV = ['maengel', 'allg', 'bericht', 'gesamt', 'gis'];
+// Umweltbereiche: Abschnitte mit Pendenzenerfassung, «n. rel.» für den ganzen Abschnitt und Auflagen
+const NON_ENV = ['maengel', 'allg', 'pkontrolle', 'bericht', 'gesamt', 'gis'];
 for (const s of SCHEMA) s.env = !NON_ENV.includes(s.id);
 
 // Fotofeld in jedem Abschnitt ohne eigenes Fotofeld ergänzen (vor "Bemerkungen")

@@ -36,23 +36,57 @@ Nach dem ersten Öffnen funktioniert die App auch ohne Netz.
 - Es gibt immer nur einen offenen Entwurf. Vor «Neu» das PDF speichern.
 - Browserdaten löschen bzw. die Home-Bildschirm-App entfernen löscht den offenen Entwurf.
 
+## 3h. Projektauswahl und Ablage (ab Version 16)
+
+- **Projekt wählen** (nur mit SharePoint): Bei «Projektnr. und Ort» zeigt ein Dropdown alle Projektordner in SharePoint (`UBB-Begehungen/<Projekt>/`). Projekt wählen → das Feld wird ausgefüllt und die offenen Pendenzen der letzten Begehung dieses Projekts werden übernommen (falls noch keine übernommen sind). «↻» lädt die Liste neu. Ohne Netz zeigt die App die zuletzt geladene Liste.
+- **+ Neues Projekt …** (im Dropdown): Projektnr. und Ort eingeben → der Ordner wird sofort in SharePoint angelegt (ohne Netz beim ersten Speichern). Gibt es das Projekt bereits (andere Gross-/Kleinschreibung oder Leerzeichen), wählt die App den vorhandenen Ordner, statt einen zweiten anzulegen.
+- **Von Hand eintippen** geht weiterhin. Der Hinweis unter dem Feld zeigt, ob der Projektordner existiert («✓ Projektordner in SharePoint») oder beim Speichern neu angelegt wird. Eine abweichende Schreibweise eines vorhandenen Projekts wird nach der Eingabe auf den Ordnernamen korrigiert.
+- **Ablage:** pro Projekt ein Ordner, darin pro Begehung ein Unterordner mit Begehungsdatei (JSON), PDF und Fotos. Der Ordnername entspricht «Projektnr. und Ort» (in SharePoint unzulässige Zeichen wie `: / ? * " < > | # %` werden durch Leerzeichen ersetzt).
+- **Aus SharePoint öffnen** öffnet direkt das Projekt der offenen Begehung; «← Alle Projekte» zeigt alle.
+- **Kein CSV mehr pro Begehung.** Gespeichert werden Begehungsdatei, PDF und Fotos. Die Sammel-CSV wird bei Bedarf aus den Begehungsdateien erzeugt (siehe 3e bzw. «Sammel-CSV für dieses Projekt» in SharePoint). «Bestehende Sammel-CSV ergänzen» entfällt.
+
+## 3g. Pendenzen (ab Version 15)
+
+- **«Mängel» heissen jetzt «Pendenzen»** (Nr. PD1, PD2 …). Erfassen wie bisher bei der jeweiligen Frage mit «+ Pendenz». Zu bekämpfende Neophyten-Bestände (N1, N2 …) gelten ebenfalls als Pendenzen.
+- **Abschnitt «Pendenzen aus früheren Begehungen»** (nach «Allgemeine Angaben»): Bei «Neue Begehung» übernimmt die App automatisch die offenen Pendenzen der letzten Begehung mit gleicher «Projektnr. und Ort» – aus SharePoint (wenn angemeldet) und von diesem Gerät, die neuere gilt. Sonst im Abschnitt «Offene Pendenzen der letzten Begehung übernehmen» oder «Andere Begehung wählen …» (auch aus einer Begehungsdatei).
+- Pro Pendenz: **erledigt / nicht erledigt**, **Kommentar**, **Fotos**. Angezeigt werden Herkunft (Nr. und Datum der Begehung), Punkt, Massnahme, Verantwortlich, Frist (überfällige orange) und die Fotos bei Erfassung.
+- **Weiterführen:** «nicht erledigt» und nicht kontrollierte Pendenzen gehen in die nächste Begehung über, mit Verlauf (z.B. «Kontrolle 13.11.2026: nicht erledigt – Becken weiterhin voll»). Erledigte enden. «×» entfernt eine Pendenz aus der Kontrolle.
+- Beim Speichern warnt die App bei Pendenzen ohne «erledigt / nicht erledigt».
+- **PDF:** Seite 1 «Pendenzen» mit «Aus früheren Begehungen» (noch offene, mit Ergebnis der Kontrolle; erledigte als Liste) und «Neu». Zusätzlich der Abschnitt «Pendenzen aus früheren Begehungen» mit Status, Kommentar und Fotos.
+- **CSV:** Spalten «Pendenzen-Kontrolle: Anzahl / erledigt / nicht erledigt»; die frühere Spalte «Mängel» heisst «Pendenzen».
+
+## 3f. SharePoint (ab Version 14)
+
+Aktiv, sobald `config.js` ausgefüllt ist (siehe 7.). Ohne Einträge in `config.js` funktioniert die App wie bisher.
+
+- **Anmelden:** «Speichern» oder «Begehungen» → «Mit Firmenkonto anmelden». Die Anmeldung inkl. 2FA läuft bei Microsoft; die App sieht kein Passwort. Die Anmeldung bleibt auf dem Gerät gespeichert, bis sie abläuft oder «Abmelden» gedrückt wird.
+- **In SharePoint speichern** (im Speichern-Dialog): lädt Begehungsdatei, PDF und alle Fotos/Karten hoch nach
+  `UBB-Begehungen/<Projektnr. und Ort>/<Datum>_<Art>_<Kennung>/` (Fotos im Unterordner `Fotos`). Erneutes Speichern überschreibt im gleichen Ordner, auch nach Änderung von Datum oder Art.
+- **Ohne Netz:** Die Begehung wird vorgemerkt («Wartet auf Upload») und automatisch hochgeladen, sobald wieder Netz da ist und die App offen ist. Ist die Anmeldung abgelaufen, erscheint ein Hinweis; nach dem Anmelden wird nachgeholt.
+- **Status:** In «Begehungen» steht pro Begehung «✓ In SharePoint gespeichert», «Wartet auf Upload» oder «Geändert seit dem letzten Upload». Der orange Punkt auf «Speichern» verschwindet nach dem Upload.
+- **Aus SharePoint öffnen** («Begehungen»): Projekt → Begehung → «Öffnen». So kann eine Begehung auf einem anderen Gerät weiterbearbeitet werden.
+- **Sammel-CSV für ein Projekt:** «Aus SharePoint öffnen» → Projekt → «Sammel-CSV für dieses Projekt». Die beiden CSV-Dateien lassen sich direkt in den Projektordner speichern.
+- **Presets zentral:** «Presets» → «Presets in SharePoint speichern» bzw. «… laden» (Datei `UBB-Begehungen/_Presets/UBB-Presets.json`).
+- **Liste «UBB-Pendenzen»** (optional): Pendenzen, Auflagen, Proben und Neophyten-Bestände werden als Listeneinträge geführt (eine Zeile pro Eintrag, mit Projekt, Frist, Verantwortlich, Koordinaten, Ordner). Ein in SharePoint nachgeführter **Status** (z.B. «erledigt») wird beim erneuten Hochladen nicht überschrieben. Wird eine übernommene Pendenz in einer späteren Begehung kontrolliert, führt die App Status («erledigt» bzw. «offen»), Datum und Kommentar der Kontrolle beim ursprünglichen Listeneintrag nach. Fehlt die Liste und darf die App sie nicht anlegen, werden die Dateien trotzdem hochgeladen; die App meldet dies.
+- **Mehrere Personen an derselben Begehung:** Wurde die Begehung in SharePoint inzwischen von jemand anderem gespeichert, fragt die App vor dem Überschreiben nach (OK = eigener Stand, Abbrechen = nicht hochladen; den SharePoint-Stand über «Aus SharePoint öffnen» ansehen). Automatische Uploads im Hintergrund überschreiben in diesem Fall nie, sondern melden den Konflikt.
+- Die Dateien selbst speichern (OneDrive, Herunterladen) bleibt als Alternative im gleichen Dialog.
+
 ## 3e. Daten sichern (ab Version 13) – wichtig
 
-**Grundsatz:** Die **Begehungsdatei** ist das Original. Sie enthält sämtliche Daten (alle Antworten, Mängel, Auflagen, Proben, Neophyten, GPS-Werte, Fotos mit Beschriftung, Karten, Unterschrift) und kann jederzeit wieder in der App geöffnet, angepasst und neu als PDF/CSV ausgegeben werden. PDF und CSV sind Ausgaben daraus.
+**Grundsatz:** Die **Begehungsdatei** ist das Original. Sie enthält sämtliche Daten (alle Antworten, Pendenzen inkl. Kontrolle, Auflagen, Proben, Neophyten, GPS-Werte, Fotos mit Beschriftung, Karten, Unterschrift) und kann jederzeit wieder in der App geöffnet, angepasst und neu als PDF/CSV ausgegeben werden. PDF und CSV sind Ausgaben daraus.
 
 **Unten in der App:** «Begehungen» · «Presets» · «Speichern».
 
-- **Speichern** erstellt drei Dateien mit gleichem Namen:
+- **Speichern** erstellt zwei Dateien mit gleichem Namen:
   - `….ubb.json` – Begehungsdatei. Auf Android heisst sie `….ubb.txt`, weil Android im Teilen-Menü keine .json-Dateien zulässt; der Inhalt ist identisch.
   - `….pdf` – Protokoll
-  - `….csv` – diese Begehung als eine Zeile
-  «Alle 3 Dateien in OneDrive speichern» → Projektordner wählen. Zusätzlich: «Fotos und Karten als Bilder speichern» (JPG mit sprechenden Namen, z.B. `M1_…`, `P2_…`, `N3_…`) und «Bestehende Sammel-CSV ergänzen».
+  «Alle 2 Dateien in OneDrive speichern» → Projektordner wählen. Zusätzlich: «Fotos und Karten als Bilder speichern» (JPG mit sprechenden Namen, z.B. `PD1_…`, `P2_…`, `N3_…`). Ein CSV pro Begehung gibt es ab Version 16 nicht mehr.
 - Ein **oranger Punkt** auf «Speichern» zeigt: Es gibt Änderungen, die noch nicht als Begehungsdatei gespeichert sind.
 - **Begehungen:** Alle Begehungen bleiben auf dem Gerät, bis sie gelöscht werden. «Neue Begehung» verwirft nichts mehr. Pro Begehung steht, ob die Begehungsdatei aktuell gespeichert ist. Beim Löschen einer nicht gespeicherten Begehung warnt die App deutlich. Leere bzw. unbearbeitete neue Begehungen räumt die App beim Wechsel selbst weg.
 - **Begehungsdatei öffnen:** Datei aus OneDrive wählen → die Begehung wird geöffnet (bzw. ersetzt die gleiche Begehung auf dem Gerät nach Rückfrage). So lassen sich Begehungen nachträglich anpassen, auch auf einem anderen Gerät.
 - **Sammel-CSV aus Begehungsdateien:** mehrere Begehungsdateien wählen → die App erstellt neu
   - `UBB-Begehungen_<Projekt>.csv` – eine Zeile pro Begehung
-  - `UBB-Massnahmen-Proben-Neophyten_<Projekt>.csv` – eine Zeile pro Mangel, Auflage, Probe und Neophyten-Bestand (mit Typ, Nr., Bereich, Massnahme, Verantwortlich, Frist, Status, Koordinaten)
+  - `UBB-Pendenzen-Auflagen-Proben_<Projekt>.csv` – eine Zeile pro Pendenz, Pendenzen-Kontrolle, Auflage, Probe und Neophyten-Bestand (mit Typ, Nr., Bereich, Massnahme, Verantwortlich, Frist, Status, Koordinaten)
   Die CSV-Dateien lassen sich so jederzeit vollständig neu erzeugen; das Ergänzen einer bestehenden CSV ist nicht mehr nötig.
 - **Weiterverarbeitung:** Die Begehungsdatei ist JSON. Sie enthält zusätzlich einen Teil «uebersicht» mit den gleichen Spalten wie die CSV, z.B. für Excel Power Query.
 
@@ -70,7 +104,7 @@ Nach dem ersten Öffnen funktioniert die App auch ohne Netz.
 ## 3c. Neu in Version 10
 
 - **Bereiche zusammengelegt** (mit Zwischentiteln):
-  - *Luft und Lärm*: Lärm · Luftreinhaltung – Maschinen und Geräte (M+G) · Erschütterungen und Körperschall
+  - *Luft und Lärm*: Lärm · Luftreinhaltung – Maschinen und Geräte (M+G) (Erschütterungen ab Version 17 entfernt)
   - *Gewässerschutz und Entwässerung*: Entwässerung · Wassergefährdende Stoffe und Flüssigkeiten (WSF)
   - *Abfälle, umweltgefährdende Stoffe*: Abfälle · Betonumschlag
 - **Materialbeprobungen** (neuer Bereich nach Abfälle): «+ Beprobung hinzufügen» legt eine Probe an und bestimmt die Position per GPS. Pro Probe: Bezeichnung, Datum, probenehmende Person (vorausgefüllt), Materialtyp (Aushub, Ausbruch, Unterboden, Oberboden, Baustoffe, Ausbruchasphalt, Baustellenabwasser), Position (GPS, neu bestimmen oder manuell LV95), Fotos, Bemerkung. Im PDF als Tabelle mit Fotos, im CSV als Spalten «Anzahl Proben» und «Proben».
@@ -148,7 +182,8 @@ Hinweise:
 - **Fragen, Optionen, Abschnitte:** in `schema.js`. Labels und Optionen frei änderbar. Die `id` eines bestehenden Feldes nicht ändern.
 - **PDF-Layout:** Funktion `buildPdf` in `app.js`. Schrift Helvetica 10 pt (PDF-Standardschrift, entspricht Arial in Form und Laufweite).
 - **GIS-Layer:** `gis-layers.js`.
-- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v13';` hochzählen (`ubb-v14` …), in `index.html` bei allen `<script src="…?v=13">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. und die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
+- **SharePoint (`config.js`):** `tenantId`, `clientId` (aus der App-Registrierung der IT), `siteHost` (z.B. `firma.sharepoint.com`), `sitePath` (z.B. `/sites/UBB`), optional `library` (leer = Standard-Dokumentbibliothek), `rootFolder`, `listName` (leer = keine Liste). Die Werte sind keine Geheimnisse. Leer lassen = SharePoint aus.
+- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v17';` hochzählen (`ubb-v18` …), in `index.html` bei allen `<script src="…?v=17">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. Danach die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
 
 ## Dateien
 
@@ -157,11 +192,16 @@ Hinweise:
 | index.html | Oberfläche |
 | schema.js | Formularstruktur (Abschnitte, Fragen, Optionen) |
 | app.js | Logik: Speichern, Fotos, Presets, PDF, Teilen |
-| features.js | Mängel, Auflagen, Unterschrift, Wetter, Pflichtfelder, Abschnitt n. rel., Kamera |
-| export.js | CSV-Zeile und Ergänzen einer Sammel-CSV |
+| features.js | Pendenzen, Auflagen, Unterschrift, Wetter, Pflichtfelder, Abschnitt n. rel., Kamera |
+| export.js | CSV-Spalten einer Begehung (für die Sammel-CSV) |
 | archive.js | Begehungen auf dem Gerät, Begehungsdatei, Speichern, Sammel-CSV aus Begehungsdateien |
 | gis.js | GIS-Lagekontrolle (GPS, Kanton, Kartenbild) |
 | gis-layers.js | Layerliste aus der GIS Umweltübersicht |
+| pendenzen.js | Pendenzen aus früheren Begehungen (Übernahme, Kontrolle) |
+| sp.js | SharePoint: Anmeldung, Projektauswahl, Upload, Warteschlange, Öffnen, Sammel-CSV, Presets, Liste |
+| config.js | SharePoint-Einstellungen (leer = aus) |
+| redirect.html | Rückkehrseite nach der Microsoft-Anmeldung |
+| msal-browser.min.js, msal-redirect-bridge.min.js | Microsoft-Anmeldebibliothek (MSAL.js, MIT-Lizenz, LICENSE-msal.txt) |
 | afry-logo.png, afry-logo-white.png | Logo |
 | jspdf.umd.min.js | PDF-Bibliothek (jsPDF, MIT-Lizenz) |
 | sw.js | Offline-Funktion |
