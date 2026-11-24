@@ -36,6 +36,14 @@ Nach dem ersten Öffnen funktioniert die App auch ohne Netz.
 - Es gibt immer nur einen offenen Entwurf. Vor «Neu» das PDF speichern.
 - Browserdaten löschen bzw. die Home-Bildschirm-App entfernen löscht den offenen Entwurf.
 
+## 3i. Bodenfeuchte (ab Version 20)
+
+- Unter «Wetter» steht das Feld **Bodenfeuchte (Saugspannung)**. Es wird beim Start eines Protokolls automatisch gefüllt; «Bodenwerte abrufen» aktualisiert.
+- Quellen: **bodenmessnetz.ch** (Meteotest; SO, BL, AG, ZG, FR, GE, VD, BE, GR, GL, VS) **Bodenfeuchte Ostschweiz** (ZH, TG, UR) und **Messdaten Kanton Luzern** (6 Stationen). Verwendet wird die nächste Station mit aktuellen Werten (automatische Stationen: letzte 48 h, manuelle Stationen: letzte 4 Tage, im Text als «manuelle Messung» markiert).
+- Im Text: Saugspannung in 20/35/(60) cm, Niederschlag der letzten 24 h, Station, Distanz und Messzeit, darunter die **Beurteilung** wie auf bodenmessnetz.ch: massgebend ist die Saugspannung in 35 cm; eigene Zeile für schwere Böden (Ton > 30 %), wenn sie abweicht; Warnung bei über 10 mm Niederschlag in 24 h. Nomogramm und Bodenart vor Ort beachten.
+- Der Link «Details» öffnet die Station auf bodenmessnetz.ch.
+- Nidwalden (Stans) und Schwyz (Oberarth, Siebnen) haben keine offene Datenschnittstelle: Ist eine dieser Stationen näher, steht unter dem Feld ein Hinweis mit Link. Tessin ist noch nicht angebunden. Distanz zur Station immer prüfen.
+
 ## 3h. Projektauswahl und Ablage (ab Version 16)
 
 - **Projekt wählen** (nur mit SharePoint): Bei «Projektnr. und Ort» zeigt ein Dropdown alle Projektordner in SharePoint (`UBB-Begehungen/<Projekt>/`). Projekt wählen → das Feld wird ausgefüllt und die offenen Pendenzen der letzten Begehung dieses Projekts werden übernommen (falls noch keine übernommen sind). «↻» lädt die Liste neu. Ohne Netz zeigt die App die zuletzt geladene Liste.
@@ -183,7 +191,7 @@ Hinweise:
 - **PDF-Layout:** Funktion `buildPdf` in `app.js`. Schrift Helvetica 10 pt (PDF-Standardschrift, entspricht Arial in Form und Laufweite).
 - **GIS-Layer:** `gis-layers.js`.
 - **SharePoint (`config.js`):** `tenantId`, `clientId` (aus der App-Registrierung der IT), `siteHost` (z.B. `firma.sharepoint.com`), `sitePath` (z.B. `/sites/UBB`), optional `library` (leer = Standard-Dokumentbibliothek), `rootFolder`, `listName` (leer = keine Liste). Die Werte sind keine Geheimnisse. Leer lassen = SharePoint aus.
-- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v19';` hochzählen (`ubb-v20` …), in `index.html` bei allen `<script src="…?v=19">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. Danach die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
+- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v20';` hochzählen (`ubb-v21` …), in `index.html` bei allen `<script src="…?v=20">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. Danach die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
 
 ## Dateien
 
@@ -192,7 +200,7 @@ Hinweise:
 | index.html | Oberfläche |
 | schema.js | Formularstruktur (Abschnitte, Fragen, Optionen) |
 | app.js | Logik: Speichern, Fotos, Presets, PDF, Teilen |
-| features.js | Pendenzen, Auflagen, Unterschrift, Wetter, Pflichtfelder, Abschnitt n. rel., Kamera |
+| features.js | Pendenzen, Auflagen, Unterschrift, Wetter, Bodenfeuchte, Pflichtfelder, Abschnitt n. rel., Kamera |
 | export.js | CSV-Spalten einer Begehung (für die Sammel-CSV) |
 | archive.js | Begehungen auf dem Gerät, Begehungsdatei, Speichern, Sammel-CSV aus Begehungsdateien |
 | gis.js | GIS-Lagekontrolle (GPS, Kanton, Kartenbild) |

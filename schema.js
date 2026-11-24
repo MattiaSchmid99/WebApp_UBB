@@ -18,6 +18,7 @@ const SCHEMA = [
     id: 'allg', title: 'Allgemeine Angaben', fields: [
       { id: 'datum', label: 'Datum', type: 'date', req: true },
       { id: 'wetter', label: 'Wetter', type: 'text', weather: true },
+      { id: 'boden', label: 'Bodenfeuchte (Saugspannung)', type: 'textarea', soil: true },
       { id: 'projekt', label: 'Projektnr. und Ort', type: 'text', keep: true, req: true },
       { id: 'ubbName', label: 'UBB-Person (Name)', type: 'text', width: 'w2', profile: true, req: true },
       { id: 'ubbKuerzel', label: 'Kürzel', type: 'text', width: 'w1', profile: true },

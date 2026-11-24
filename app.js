@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '19'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
+const APP_VERSION = '20'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
 
 /* ---------- Speicher (IndexedDB, Fallback: nur im Arbeitsspeicher) ---------- */
 const DB = (() => {
@@ -271,6 +271,7 @@ function renderField(f) {
     const ta = el('textarea', { id: inpId, rows: 3, oninput: e => { setValue(f.id, e.target.value); autosize(e.target); } });
     ta.value = v ?? '';
     w.append(labelEl(f, inpId), ta);
+    if (f.soil) w.append(soilRow());
     requestAnimationFrame(() => autosize(ta));
   } else if (f.type === 'radio' || f.type === 'multi') {
     const chips = el('div', { class: 'chips', id: 'c_' + f.id, role: f.type === 'radio' ? 'radiogroup' : 'group' });

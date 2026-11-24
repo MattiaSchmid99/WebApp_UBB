@@ -1,7 +1,7 @@
 'use strict';
 /* =====================================================================
    Zusatzfunktionen: Abschnitt «n. rel.», Auflagen, Pendenzen,
-   Unterschrift, Wetter, Pflichtfelder. Nutzt state, el, uid, … aus app.js.
+   Unterschrift, Wetter, Bodenfeuchte, Pflichtfelder. Nutzt state, el, uid, … aus app.js.
    ===================================================================== */
 
 /* ---------- Abschnitt nicht relevant ---------- */
@@ -314,9 +314,193 @@ async function fetchWeather(manual) {
 
 // Automatisch einmal pro Protokoll, wenn Wetter leer und Datum heute
 function autoWeather() {
+  autoSoil();
   if (state.wxAuto || state.values.wetter || state.values.datum !== today()) return;
   state.wxAuto = true; scheduleSave(true);
   fetchWeather(false);
+}
+
+/* ---------- Bodenfeuchte: Bodenmessnetz (Meteotest), Bodenfeuchte Ostschweiz, Kanton Luzern ----------
+   Beide Quellen liefern alle Stationen mit den letzten Messwerten (CORS offen); die nächste aktuelle Station gilt.
+   Saugspannung in cbar (20/35/60 cm), Niederschlag 24 h. Zeitstempel in UTC.
+   Beurteilung wie auf bodenmessnetz.ch: massgebend ist die Saugspannung im Unterboden (35 cm);
+   bei > 10 mm Niederschlag in 24 h sind alle Erdarbeiten kritisch. */
+const BMN = 'https://www.bodenmessnetz.ch/';
+const BMN_TOO_OLD = 48 * 3600e3;
+
+function soilRow() {
+  return el('div', { class: 'wxrow' },
+    el('span', { class: 'hint', id: 'soilInfo' }, 'Messwerte der nächsten Station des Bodenmessnetzes abrufen'),
+    el('button', { type: 'button', class: 'btn sm', id: 'soilBtn', onclick: () => fetchSoil(true) }, 'Bodenwerte abrufen'));
+}
+
+// Beurteilung nach Saugspannung in 35 cm (cbar): [leichte/mittelschwere Böden, schwere Böden (Ton > 30 %)]
+function soilVerdict(cb) {
+  if (cb < 6) return ['Kein Befahren und keine Erdarbeiten', 'Kein Befahren und keine Erdarbeiten'];
+  if (cb < 10) return ['Kein Befahren; Erdbewegungen (ohne Befahren des Bodens) ab 6 cbar möglich',
+    'Kein Befahren; Erdbewegungen (ohne Befahren des Bodens) ab 15 cbar möglich'];
+  if (cb < 20) return ['Befahren frei für Fahrzeuge mit Raupen, Niederdruckreifen oder Zwillingsrädern unter Einhaltung der Nomogramm-Werte',
+    cb < 15 ? 'Kein Befahren (Minimalwert 20 cbar); Erdbewegungen (ohne Befahren des Bodens) ab 15 cbar möglich'
+      : 'Kein Befahren (Minimalwert 20 cbar); Erdbewegungen (ohne Befahren des Bodens) möglich'];
+  return ['Befahren frei für alle Fahrzeuge unter Einhaltung der Nomogramm-Werte',
+    'Erforderlicher Saugspannungswert: Werte gemäss Nomogramm + 10 cbar'];
+}
+
+// Einheitliches Stationsformat beider Quellen:
+// { src, name, kt, h, E, N, link, top, sub, s60, rain, rainLbl, manual, lbl:[oben, unten] }  (Werte als { v, t })
+const soilVal = m => (m && m.value != null && !isNaN(+m.value)) ? { v: +m.value, t: new Date(m.time) } : null;
+
+// Bodenmessnetz (Meteotest): JSON mit letzten Messwerten
+async function soilBmn() {
+  const r = await fetch(BMN + 'api/v1/stations', { cache: 'no-cache' });
+  if (!r.ok) throw new Error('Bodenmessnetz HTTP ' + r.status);
+  const res = await r.json();
+  return (Array.isArray(res) ? res : res.value || [])
+    .filter(s => s.station_status === 'active' && s.station_view_state === 'public')
+    .map(s => {
+      const lm = s.latest_measurements || {}, p = wgs84ToLv95(s.station_latitude, s.station_longitude);
+      return {
+        src: 'Bodenmessnetz', name: s.station_name, kt: s.project_title_short, h: s.station_altitude, E: p.E, N: p.N,
+        link: `${BMN}detail/${s.station_id}`, lbl: ['20 cm', '35 cm'],
+        top: soilVal(lm.soil_water_tension_avg_cbar_neg20cm), sub: soilVal(lm.soil_water_tension_avg_cbar_neg35cm),
+        s60: soilVal(lm.soil_water_tension_avg_cbar_neg60cm), rain: soilVal(lm.precipitation_24h_sum_mm_0cm), rainLbl: '24 h',
+      };
+    });
+}
+
+// Bodenfeuchte Ostschweiz (ZH, TG, UR …): GeoJSON, Werte stehen im HTML des Kartenpopups.
+// Koordinaten LV03, Zeit «Saugspannung vom TT.MM.JJJJ hh:mm» (Lokalzeit; manuelle Stationen nur Datum).
+const BFO = 'https://www.bodenfeuchte-ostschweiz.ch/';
+async function soilBfo() {
+  const r = await fetch(BFO + 'map/stationen/json?filter=all&filter2=15;16;', { cache: 'no-cache' });
+  if (!r.ok) throw new Error('Ostschweiz HTTP ' + r.status);
+  const res = await r.json();
+  const out = [];
+  for (const f of res.features || []) {
+    const pr = f.properties || {};
+    if (pr['style-class'] === 'extern') continue; // externe Stationen: aus der jeweiligen Quelle
+    const doc = new DOMParser().parseFromString(pr.description || '', 'text/html');
+    const h6 = doc.querySelector('h6'); if (!h6) continue;
+    const title = (h6.firstChild && h6.firstChild.textContent || '').trim();
+    const m = /^(.*?)\s*\(([A-Z]{2})\)$/.exec(title);
+    const tm = /vom\s+(\d{2})\.(\d{2})\.(\d{4})(?:\s+(\d{2}):(\d{2}))?/.exec(h6.textContent);
+    if (!tm) continue;
+    const t = new Date(+tm[3], tm[2] - 1, +tm[1], tm[4] ? +tm[4] : 12, tm[5] ? +tm[5] : 0);
+    const row = {};
+    doc.querySelectorAll('tr').forEach(tr => {
+      const k = (tr.cells[0] && tr.cells[0].textContent || '').trim().replace(/:$/, '');
+      row[k] = (tr.cells[tr.cells.length - 1] && tr.cells[tr.cells.length - 1].textContent || '').trim();
+    });
+    const cbar = k => { const x = /([\d.]+)\s*cbar/.exec(row[k] || ''); return x ? { v: +x[1], t } : null; };
+    const rn = /([\d.]+)\s*mm\s*\(([^)]*)\)/.exec(row['Niederschlag'] || '');
+    const [y, x] = (f.geometry && f.geometry.coordinates || []).map(Number);
+    const node = /href="([^"]*node\/\d+)"/.exec(pr.description || '');
+    out.push({
+      src: 'Bodenfeuchte Ostschweiz', name: m ? m[1] : title, kt: m ? m[2] : '', h: null,
+      E: y + 2e6, N: x + 1e6, link: node ? BFO + node[1].replace(/^\//, '') : BFO,
+      lbl: ['Oberboden', 'Unterboden'], top: cbar('Oberboden'), sub: cbar('Unterboden'), s60: null,
+      rain: rn ? { v: +rn[1], t } : null, rainLbl: rn ? rn[2].replace('Stunden', 'h').replace(' bis ', '–') : '',
+      manual: !tm[4],
+    });
+  }
+  return out;
+}
+
+// Kanton Luzern (Messdaten-Portal geo.lu.ch): KiWIS-Server von inNET, CORS offen.
+// Stationen und Zeitreihen (Medianwert stündlich; Niederschlag gleitende Tagessumme) aus dem Portal übernommen.
+const LU_KIWIS = 'https://kiwis.innetag.ch/KiWIS/KiWIS';
+const LU_STATIONS = [
+  { name: 'Altbüron', E: 2635702, N: 1227280, h: 700, top: '3069010', sub: '3070010', s60: '3071010', rain: '3706010' },
+  { name: 'Emmen', E: 2666483, N: 1215581, h: 424, top: '260937010', sub: '260938010' },
+  { name: 'Ruswil', E: 2649607, N: 1215019, h: 618, top: '269143010', sub: '269144010', rain: '269136010' },
+  { name: 'Schüpfheim', E: 2644640, N: 1201004, h: 734, top: '3186010', sub: '3187010', rain: '3707010' },
+  { name: 'Sursee', E: 2649158, N: 1223800, h: 512, top: '3103010', sub: '3104010', rain: '3708010' },
+  { name: 'Urswil 1', E: 2665630, N: 1222365, h: 500, top: '3132010', sub: '3133010', s60: '3134010', rain: '3709010' },
+];
+async function soilLu() {
+  const ids = LU_STATIONS.flatMap(s => [s.top, s.sub, s.s60, s.rain].filter(Boolean));
+  const body = new URLSearchParams({
+    datasource: '1', service: 'kisters', type: 'queryServices', request: 'getTimeseriesValues', format: 'dajson',
+    dateformat: "yyyy-MM-dd'T'HH:mm:ssXXX", metadata: 'true', timezone: 'CET', md_returnfields: 'ts_id',
+    returnfields: 'Timestamp,Value', ts_id: ids.join(','), kvp: 'true',
+  });
+  const r = await fetch(LU_KIWIS, { method: 'POST', body, cache: 'no-cache' });
+  if (!r.ok) throw new Error('Luzern HTTP ' + r.status);
+  const last = {};
+  for (const x of await r.json()) {
+    const row = (x.data || []).filter(d => d[1] != null).pop();
+    if (row) last[x.ts_id] = { v: +row[1], t: new Date(row[0]) };
+  }
+  return LU_STATIONS.map(s => ({
+    src: 'Messdaten Kanton Luzern', name: s.name, kt: 'LU', h: s.h, E: s.E, N: s.N,
+    link: 'https://www.geo.lu.ch/messdaten/bodenfeuchte', lbl: ['20 cm', '35 cm'],
+    top: last[s.top] || null, sub: last[s.sub] || null, s60: s.s60 && last[s.s60] || null,
+    rain: s.rain && last[s.rain] || null, rainLbl: '24 h',
+  }));
+}
+
+// Stationen ohne offene Datenschnittstelle (nur Hinweis mit Link, wenn näher als die verwendete Station)
+const SOIL_LINK_ONLY = [
+  { name: 'Stans', kt: 'NW', E: 2671426, N: 1201541, link: 'https://www.bodenfeuchte-nidwalden.ch/' },
+  { name: 'Oberarth', kt: 'SZ', E: 2682882, N: 1212254, link: 'https://www.bodenfeuchte-schwyz.ch/details-oberarth' },
+  { name: 'Siebnen', kt: 'SZ', E: 2712850, N: 1226542, link: 'https://www.bodenfeuchte-schwyz.ch/details-siebnen' },
+];
+
+async function fetchSoil(manual) {
+  const info = $('soilInfo'), btn = $('soilBtn');
+  const set = (t, link) => { if (!info) return; info.textContent = t; if (link) info.append(' – ', el('a', { href: link, target: '_blank', rel: 'noopener' }, 'Details')); };
+  if (!navigator.onLine) { if (manual) set('Keine Internetverbindung.'); return; }
+  if (!navigator.geolocation) { if (manual) set('Standort nicht verfügbar.'); return; }
+  if (btn) btn.disabled = true;
+  set('Bodenwerte werden abgerufen …');
+  try {
+    const [pos, ...srcs] = await Promise.all([
+      new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: false, timeout: 15000, maximumAge: 600000 })),
+      soilBmn().catch(e => { console.warn(e); return []; }),
+      soilBfo().catch(e => { console.warn(e); return []; }),
+      soilLu().catch(e => { console.warn(e); return []; }),
+    ]);
+    const here = wgs84ToLv95(pos.coords.latitude, pos.coords.longitude);
+    // nächste Station mit aktueller Saugspannung (automatisch: 48 h; manuelle Messung: 4 Tage)
+    const fresh = s => [s.top, s.sub].some(m => m && Date.now() - m.t < (s.manual ? 4 * 864e5 : BMN_TOO_OLD));
+    const st = srcs.flat().filter(s => isFinite(s.E) && isFinite(s.N) && fresh(s))
+      .map(s => ({ ...s, d: Math.hypot(s.E - here.E, s.N - here.N) })).sort((a, b) => a.d - b.d)[0];
+    if (!st) throw new Error('Keine aktuelle Station');
+    const km = (st.d / 1000).toFixed(st.d < 10000 ? 1 : 0);
+    const cb = m => (m.v < 10 ? m.v.toFixed(1) : String(Math.round(m.v))) + ' cbar';
+    const depths = [[st.lbl[0], st.top], [st.lbl[1], st.sub], ['60 cm', st.s60]].filter(([, m]) => m).map(([d, m]) => `${d}: ${cb(m)}`);
+    const ref = st.sub || st.top; // massgebend Unterboden (35 cm); fehlt der Wert, Oberboden
+    const t = ref.t;
+    const when = st.manual ? t.toLocaleDateString('de-CH', { day: '2-digit', month: '2-digit' }) + ', manuelle Messung'
+      : t.toLocaleString('de-CH', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Zurich' });
+    const [std, heavy] = soilVerdict(ref.v);
+    const wet = st.rain && st.rainLbl === '24 h' && st.rain.v > 10;
+    const txt = `Saugspannung ${depths.join(', ')}`
+      + (st.rain ? `; Niederschlag ${st.rainLbl}: ${st.rain.v.toFixed(1)} mm` : '')
+      + ` (${st.src}, Station ${st.name}${st.kt ? ' ' + st.kt : ''}, ${km} km, ${when})`
+      + `\nBeurteilung${st.sub ? '' : ` (nach ${st.lbl[0]}, ${st.lbl[1]} fehlt)`}: ${std}`
+      + (heavy !== std ? `\nSchwere Böden: ${heavy}` : '')
+      + (wet ? '\nAchtung: über 10 mm Niederschlag in 24 h – alle Erdarbeiten kritisch' : '');
+    if (!manual && state.values.boden) return;
+    const rev0 = state.rev;
+    setValue('boden', txt);
+    if (!manual) { state.rev = rev0; updateSaveIndicator(); } // automatisch eingetragen: keine Bearbeitung
+    const inp = $('i_boden'); if (inp) { inp.value = txt; autosize(inp); }
+    set(`Quelle: ${st.src}, Station ${st.name} (${km} km${st.h ? ', ' + Math.round(st.h) + ' m ü. M.' : ''}), Messung ${st.manual ? t.toLocaleDateString('de-CH') : hhmm(t)}. Beurteilung nach Bodenmessnetz; Nomogramm und Bodenart vor Ort beachten`, st.link);
+    const near = SOIL_LINK_ONLY.map(s => ({ ...s, d: Math.hypot(s.E - here.E, s.N - here.N) })).sort((a, b) => a.d - b.d)[0];
+    if (near && near.d < st.d && info) info.append(' · Näher: Station ', el('a', { href: near.link, target: '_blank', rel: 'noopener' },
+      `${near.name} ${near.kt}`), ` (${(near.d / 1000).toFixed(near.d < 10000 ? 1 : 0)} km, Werte nur auf deren Website)`);
+  } catch (e) {
+    if (!(e && e.code)) console.warn(e);
+    set(e && e.code === 1 ? 'Standortzugriff verweigert.' : 'Bodenwerte konnten nicht abgerufen werden.', BMN);
+  } finally { if (btn) btn.disabled = false; }
+}
+
+// Automatisch einmal pro Protokoll, wenn leer und Datum heute
+function autoSoil() {
+  if (state.soilAuto || state.values.boden || state.values.datum !== today()) return;
+  state.soilAuto = true; scheduleSave(true);
+  fetchSoil(false);
 }
 
 /* ---------- Pflichtfelder ---------- */

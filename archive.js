@@ -69,7 +69,7 @@ async function openInitial() {
 }
 
 // Leere Begehung (nichts erfasst ausser Datum, Wetter, Name/Kürzel) beim Wechsel nicht im Archiv behalten
-const AUTO_FIELDS = ['datum', 'wetter', 'ubbName', 'ubbKuerzel'];
+const AUTO_FIELDS = ['datum', 'wetter', 'boden', 'ubbName', 'ubbKuerzel'];
 function isEmptyBeg(st) {
   const filled = v => Array.isArray(v) ? v.length > 0 : v != null && String(v).trim() !== '';
   return !Object.entries(st.values).some(([k, v]) => !AUTO_FIELDS.includes(k) && filled(v)) && !st.maengel.length
