@@ -1,5 +1,5 @@
 'use strict';
-const APP_VERSION = '18'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
+const APP_VERSION = '19'; // bei jeder neuen Version zusammen mit sw.js und index.html (?v=) erhöhen
 
 /* ---------- Speicher (IndexedDB, Fallback: nur im Arbeitsspeicher) ---------- */
 const DB = (() => {
@@ -129,6 +129,9 @@ const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 
 
 function toast(msg) {
   const t = document.getElementById('toast');
+  // in einem offenen Dialog anzeigen, sonst liegt die Meldung unsichtbar dahinter
+  const host = [...document.querySelectorAll('dialog[open]')].pop() || document.body;
+  if (t.parentNode !== host) host.append(t);
   t.textContent = msg; t.classList.add('on');
   clearTimeout(toast._t); toast._t = setTimeout(() => t.classList.remove('on'), 2600);
 }
@@ -990,15 +993,9 @@ async function exportPresets() {
   if (!presets.length) { toast('Keine Presets vorhanden.'); return; }
   const json = JSON.stringify({ format: 'ubb-presets', version: 1, exported: new Date().toISOString(), presets }, null, 2);
   const base = `UBB-Presets_${today()}`;
-  // Nicht jeder Browser erlaubt .json im Teilen-Menü; dann als .txt (Import akzeptiert beides)
-  const candidates = [new File([json], base + '.json', { type: 'application/json' }), new File([json], base + '.txt', { type: 'text/plain' })];
-  const file = navigator.canShare && candidates.find(f => navigator.canShare({ files: [f] }));
-  if (file) {
-    try { await navigator.share({ files: [file], title: base }); }
-    catch (e) { if (e.name !== 'AbortError') { console.error(e); downloadBlob(candidates[0], candidates[0].name); } }
-  } else {
-    downloadBlob(candidates[0], candidates[0].name);
-  }
+  const file = jsonFile(json, base);
+  if (canShareFiles([file])) await shareFiles([file]);
+  else downloadBlob(file, file.name);
 }
 
 async function importPresets(file) {
@@ -1030,6 +1027,18 @@ async function importPresets(file) {
   await storePresets();
   renderPresetList();
   toast(added + updated ? `${added} neu, ${updated} aktualisiert.` : 'Keine gültigen Presets in der Datei.');
+}
+
+/* JSON-Datei zum Teilen/Speichern. Chrome, Edge und Samsung Internet teilen nur Dateitypen
+   einer festen Liste (Bilder, PDF, .txt, .csv …). .json gehört nicht dazu, obwohl canShare()
+   «ja» meldet – das Teilen bricht dann ohne Menü ab. Darum dort als .txt (gleicher Inhalt,
+   die App öffnet beides). Safari/iOS teilt .json. Ohne Teilen-Funktion: Download als .json. */
+const UA = navigator.userAgent;
+const SHARE_JSON_OK = /iP(hone|ad|od)/.test(UA) || (/Macintosh/.test(UA) && !/Chrome|Chromium|Edg|OPR|Firefox/.test(UA));
+function jsonFile(json, base) {
+  const asJson = new File([json], base + '.json', { type: 'application/json' });
+  if (!navigator.canShare || (SHARE_JSON_OK && navigator.canShare({ files: [asJson] }))) return asJson;
+  return new File([json], base + '.txt', { type: 'text/plain' });
 }
 
 function downloadBlob(blob, name) {

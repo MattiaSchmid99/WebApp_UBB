@@ -4,7 +4,7 @@
    - Archiv: alle Begehungen bleiben auf dem Gerät (IndexedDB), bis sie gelöscht werden.
    - Begehungsdatei (*.ubb.json bzw. *.ubb.txt): vollständige Daten inkl. Fotos, Karten,
      Unterschrift; kann in der App wieder geöffnet werden. PDF und CSV sind Ausgaben daraus.
-   - Android (Chrome) lässt im Teilen-Menü keine .json zu → gleiche Datei als .ubb.txt.
+   - Chrome/Edge/Samsung (Android) teilen keine .json, obwohl canShare() «ja» meldet → gleiche Datei als .ubb.txt.
    ===================================================================== */
 
 const IDX_KEY = 'index', CUR_KEY = 'current', BKEY = id => 'beg:' + id;
@@ -149,12 +149,7 @@ function begehungJson() {
     begehung: state,
   });
 }
-function begehungFile(base) {
-  const json = begehungJson();
-  const asJson = new File([json], base + '.ubb.json', { type: 'application/json' });
-  if (!navigator.canShare || navigator.canShare({ files: [asJson] })) return asJson;
-  return new File([json], base + '.ubb.txt', { type: 'text/plain' }); // Android: .json nicht teilbar
-}
+function begehungFile(base) { return jsonFile(begehungJson(), base + '.ubb'); }
 
 async function readBegFile(file) {
   const obj = JSON.parse(await file.text());
@@ -185,9 +180,16 @@ async function importBegFile(file, after) {
 }
 
 /* ---------- Dateien teilen / herunterladen ---------- */
+// Teilen; klappt es nicht (z.B. Datei > 50 MB in Chrome), werden die Dateien heruntergeladen
 async function shareFiles(files) {
-  try { await navigator.share({ files, title: files.length === 1 ? files[0].name : 'UBB-Begehung' }); return true; }
-  catch (e) { if (e.name !== 'AbortError') toast('Teilen nicht möglich – bitte «Herunterladen» verwenden.'); return false; }
+  try { await navigator.share({ files }); return true; }
+  catch (e) {
+    if (e.name === 'AbortError') return false; // abgebrochen
+    console.error('Teilen', e);
+    toast(`Teilen nicht möglich (${e.name}) – ${files.length > 1 ? 'Dateien werden' : 'Datei wird'} heruntergeladen.`);
+    files.forEach((f, i) => setTimeout(() => downloadBlob(f, f.name), i * 400));
+    return true;
+  }
 }
 const canShareFiles = files => !!(navigator.canShare && navigator.canShare({ files }));
 

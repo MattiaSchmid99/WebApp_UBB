@@ -78,7 +78,7 @@ Aktiv, sobald `config.js` ausgefüllt ist (siehe 7.). Ohne Einträge in `config.
 **Unten in der App:** «Begehungen» · «Presets» · «Speichern».
 
 - **Speichern** erstellt zwei Dateien mit gleichem Namen:
-  - `….ubb.json` – Begehungsdatei. Auf Android heisst sie `….ubb.txt`, weil Android im Teilen-Menü keine .json-Dateien zulässt; der Inhalt ist identisch.
+  - `….ubb.json` – Begehungsdatei. Auf Android heisst sie `….ubb.txt`, weil Chrome, Edge und Samsung Internet keine .json-Dateien teilen; der Inhalt ist identisch und die App öffnet beide.
   - `….pdf` – Protokoll
   «Alle 2 Dateien in OneDrive speichern» → Projektordner wählen. Zusätzlich: «Fotos und Karten als Bilder speichern» (JPG mit sprechenden Namen, z.B. `PD1_…`, `P2_…`, `N3_…`). Ein CSV pro Begehung gibt es ab Version 16 nicht mehr.
 - Ein **oranger Punkt** auf «Speichern» zeigt: Es gibt Änderungen, die noch nicht als Begehungsdatei gespeichert sind.
@@ -148,7 +148,7 @@ Ein Preset füllt ausgewählte Felder vor: Projektnummer, Bauleitung, Schutzzone
 **Verwenden:** **Neu** → «Vorausfüllen mit» → Preset wählen. Oder im laufenden Protokoll **Presets → Anwenden** (überschreibt nur die Felder des Presets).
 
 **Im Team teilen über OneDrive**
-1. Eine Person: **Presets → Presets exportieren** → OneDrive → gemeinsamen Ordner wählen (z.B. `UBB/Presets`). Die Datei heisst `UBB-Presets_<Datum>.json` (bei manchen Android-Geräten `.txt`).
+1. Eine Person: **Presets → Presets exportieren** → OneDrive → gemeinsamen Ordner wählen (z.B. `UBB/Presets`). Die Datei heisst `UBB-Presets_<Datum>.json` (auf Android `.txt`).
 2. Alle anderen: **Presets → Presets importieren** → OneDrive → Datei wählen.
 3. Beim Import werden Presets mit gleichem Namen aktualisiert, neue ergänzt. Lokal gelöschte oder nur lokal vorhandene Presets bleiben unberührt.
 
@@ -183,7 +183,7 @@ Hinweise:
 - **PDF-Layout:** Funktion `buildPdf` in `app.js`. Schrift Helvetica 10 pt (PDF-Standardschrift, entspricht Arial in Form und Laufweite).
 - **GIS-Layer:** `gis-layers.js`.
 - **SharePoint (`config.js`):** `tenantId`, `clientId` (aus der App-Registrierung der IT), `siteHost` (z.B. `firma.sharepoint.com`), `sitePath` (z.B. `/sites/UBB`), optional `library` (leer = Standard-Dokumentbibliothek), `rootFolder`, `listName` (leer = keine Liste). Die Werte sind keine Geheimnisse. Leer lassen = SharePoint aus.
-- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v18';` hochzählen (`ubb-v19` …), in `index.html` bei allen `<script src="…?v=18">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. Danach die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
+- **Nach jeder Änderung** in `sw.js` die Zeile `const VERSION = 'ubb-v19';` hochzählen (`ubb-v20` …), in `index.html` bei allen `<script src="…?v=19">` die Zahl erhöhen und in `app.js` `APP_VERSION` anpassen. Die Version steht unten in der App und in den PDF-Eigenschaften. Danach die geänderten Dateien erneut auf GitHub hochladen. Die Smartphones laden die neue Version beim nächsten Öffnen mit Netz (evtl. App zweimal öffnen).
 
 ## Dateien
 
